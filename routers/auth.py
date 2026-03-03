@@ -30,7 +30,7 @@ def registro(data: UserRegister, db: Session = Depends(get_db)):
         nombre=data.nombre,
         email=data.email,
         password=hash_password(data.password),
-        is_admin=False
+        rol="cliente"
     )
 
     db.add(user)
@@ -47,7 +47,7 @@ def acceso(data: UserLogin, db: Session = Depends(get_db)):
     token = create_token({
     "user_id": user.id,        # 🔥 CLAVE
     "email": user.email,
-    "is_admin": user.is_admin
+    "rol": user.rol.value
 })
 
     return {
@@ -56,6 +56,6 @@ def acceso(data: UserLogin, db: Session = Depends(get_db)):
             "id": user.id,
             "nombre": user.nombre,
             "email": user.email,
-            "is_admin": user.is_admin
+            "rol": user.rol.value
         }
     }
