@@ -3,6 +3,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+
 load_dotenv()
 print(os.getenv("ADMIN_EMAIL"))
 from database import engine
@@ -26,6 +27,11 @@ if RESET_DB:
 print("📦 Creando tablas...")
 Base.metadata.create_all(bind=engine)
 print("✅ Tablas creadas")
+from services.agenda_service import generar_agenda_si_vacia
+
+@app.on_event("startup")
+def startup_event():
+    generar_agenda_si_vacia()
 
 # =====================
 # OPENAPI / JWT
