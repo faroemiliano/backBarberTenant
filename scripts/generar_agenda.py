@@ -58,7 +58,7 @@ print("✅ Horarios base generados/validados")
 # ========================
 
 hoy = date.today()
-barberos = db.query(Usuario).filter(Usuario.rol == RolEnum.barbero).all()
+barberos = db.query(Usuario).filter(Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])).all()
 
 for barbero in barberos:
     for i in range(365):
