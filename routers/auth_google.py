@@ -59,5 +59,6 @@ def login_google(payload: dict, db: Session = Depends(get_db)):
         }
 
     except Exception as e:
-        print("ERROR GOOGLE AUTH:", e)
-        raise HTTPException(status_code=401, detail="Login con Google inválido")
+        print("ERROR GOOGLE AUTH TYPE:", type(e))
+        print("ERROR GOOGLE AUTH:", str(e))
+        raise HTTPException(status_code=401, detail=str(e))
