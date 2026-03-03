@@ -27,13 +27,18 @@ class SolicitudTurno(BaseModel):
 # --------------------------------------------------
 @router.get("/calendario/{barbero_id}")
 def calendario(barbero_id: int, db: Session = Depends(get_db)):
-    # Validar que el barbero existe
-    barbero = db.query(Usuario).filter(
+
+    # 🔎 Validar que el profesional exista (admin o barbero)
+    profesional = db.query(Usuario).filter(
         Usuario.id == barbero_id,
-        Usuario.rol == RolEnum.barbero
+        Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
     ).first()
-    if not barbero:
-        raise HTTPException(status_code=404, detail="Barbero no encontrado")
+
+    if not profesional:
+        raise HTTPException(
+            status_code=404,
+            detail="Profesional no encontrado"
+        )
 
     hoy = date.today()
 
@@ -48,6 +53,8 @@ def calendario(barbero_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    # ⚠️ No devolver 404 si no hay horarios
+    # Simplemente devolver lista vacía
     return [
         {
             "id": h.id,
