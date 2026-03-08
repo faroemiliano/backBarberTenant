@@ -37,31 +37,38 @@ def get_admin_from_token(authorization: str, db: Session):
     return admin
 
 
+
 # =========================
-# AUTORIZAR BARBERO (ADMIN)
+# VER TODOS LOS USUARIOS(ADMIN)
 # =========================
-class AutorizarBarberoRequest(BaseModel):
-    email: str
 
+@router.get("/usuarios")
+def listar_usuarios(db: Session = Depends(get_db)):
+    usuarios = db.query(Usuario).all()
 
-@router.post("/autorizar-barbero")
-def autorizar_barbero(
-    data: AutorizarBarberoRequest,
-    db: Session = Depends(get_db),
-    authorization: str = Header(...)
-):
-    get_admin_from_token(authorization, db)
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "nombre": u.nombre,
+            "rol": u.rol.value
+        }
+        for u in usuarios
+    ]
+# =========================
+# CAMBIAR ROL DE LOS USUARIOS(ADMIN)
+# =========================
+@router.put("/cambiar-rol/{user_id}")
+def cambiar_rol(user_id: int, data: dict, db: Session = Depends(get_db)):
+    user = db.query(Usuario).filter(Usuario.id == user_id).first()
 
-    usuario = db.query(Usuario).filter_by(email=data.email).first()
-    if not usuario:
+    if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    usuario.rol = RolEnum.barbero
+    user.rol = RolEnum(data["rol"])
     db.commit()
 
-    return {"ok": True, "mensaje": f"{data.email} ahora es barbero"}
-
-
+    return {"msg": "Rol actualizado"}
 # =========================
 # VER TODOS LOS BARBEROS (ADMIN)
 # =========================
