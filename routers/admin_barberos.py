@@ -8,6 +8,8 @@ from auth.security import decode_token
 from datetime import date
 from passlib.context import CryptContext
 
+from utils.horarios import generar_horarios_barbero
+
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -65,8 +67,13 @@ def cambiar_rol(user_id: int, data: dict, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    user.rol = RolEnum(data["rol"])
+    nuevo_rol = RolEnum(data["rol"])
+    user.rol = nuevo_rol
     db.commit()
+
+    # 🔹 generar agenda si se vuelve barbero
+    if nuevo_rol == RolEnum.barbero:
+        generar_horarios_barbero(db, user)
 
     return {"msg": "Rol actualizado"}
 # =========================
