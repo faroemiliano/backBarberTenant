@@ -10,14 +10,15 @@ from database import engine
 from models import Base
 
 # Routers
-from routers import admin_barberos, auth, barbero_solo, calendario, admin, auth_google, admin_servicios, mis_turnos
+from routers import admin_barberos, auth, barbero_solo, calendario, admin, auth_google, admin_servicios, mis_turnos, superadmin,barberia
 
 app = FastAPI(title="Barbería API")
 
 # =====================
 # RESET SOLO EN DESARROLLO
 # =====================
-RESET_DB = False  # ⚠️ poner False en producción
+RESET_DB = False
+  # ⚠️ poner False en producción
 
 if RESET_DB:
     print("⚠️ Borrando tablas...")
@@ -27,11 +28,9 @@ if RESET_DB:
 print("📦 Creando tablas...")
 Base.metadata.create_all(bind=engine)
 print("✅ Tablas creadas")
-from services.agenda_service import generar_agenda_si_vacia
 
-@app.on_event("startup")
-def startup_event():
-    generar_agenda_si_vacia()
+
+
 
 # =====================
 # OPENAPI / JWT
@@ -81,6 +80,9 @@ app.add_middleware(
 # =====================
 # ROUTERS
 # =====================
+# 🔥 SUPERADMIN (SaaS control)
+app.include_router(barberia.router)
+app.include_router(superadmin.router)
 # Auth / Google / Registro
 app.include_router(auth.router, prefix="", tags=["Auth"])
 app.include_router(auth_google.router, prefix="", tags=["Auth Google"])

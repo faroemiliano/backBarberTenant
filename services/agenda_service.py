@@ -23,33 +23,34 @@ FRANJAS = {
 
 INTERVALO = 30
 
+
 def dia_espanol(fecha: date):
     return DIAS[fecha.strftime("%A").lower()]
 
 
-def generar_agenda_si_vacia():
+# =========================
+# 1️⃣ HORARIOS BASE
+# =========================
+def generar_horarios_base(barberia_id: int):
     db = SesionLocal()
 
-    # 🔎 Si ya hay horarios, no hacemos nada
-    if db.query(Horario).first():
-        print("⏭️ Agenda ya existente, no se genera nada")
-        db.close()
-        return
-
-    print("🚀 Generando agenda automática...")
-
-    # 1️⃣ Horarios base
     for dia, franjas in FRANJAS.items():
         for inicio, fin in franjas:
             hora_actual = inicio
+
             while hora_actual < fin:
                 exists = db.query(HorarioBase).filter_by(
                     dia_semana=dia,
-                    hora=hora_actual
+                    hora=hora_actual,
+                    barberia_id=barberia_id
                 ).first()
 
                 if not exists:
-                    db.add(HorarioBase(dia_semana=dia, hora=hora_actual))
+                    db.add(HorarioBase(
+                        dia_semana=dia,
+                        hora=hora_actual,
+                        barberia_id=barberia_id
+                    ))
 
                 hora_actual = (
                     datetime.combine(date.today(), hora_actual)
@@ -57,15 +58,20 @@ def generar_agenda_si_vacia():
                 ).time()
 
     db.commit()
+    db.close()
 
-    # 2️⃣ Horarios reales
+
+# =========================
+# 2️⃣ AGENDA POR BARBERO
+# =========================
+def generar_agenda_barbero(barbero_id: int, barberia_id: int):
+    db = SesionLocal()
+
     hoy = date.today()
 
-    barberos = db.query(Usuario).filter(
-        Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
+    bases = db.query(HorarioBase).filter_by(
+        barberia_id=barberia_id
     ).all()
-
-    bases = db.query(HorarioBase).all()
 
     bases_por_dia = {}
     for base in bases:
@@ -73,26 +79,43 @@ def generar_agenda_si_vacia():
 
     nuevos = []
 
-    for barbero in barberos:
-        for i in range(365):
-            fecha = hoy + timedelta(days=i)
-            dia = dia_espanol(fecha)
+    for i in range(365):
+        fecha = hoy + timedelta(days=i)
+        dia = dia_espanol(fecha)
 
-            for base in bases_por_dia.get(dia, []):
-                nuevos.append({
-                    "fecha": fecha,
-                    "hora": base.hora,
-                    "disponible": True,
-                    "barbero_id": barbero.id
-                })
+        for base in bases_por_dia.get(dia, []):
+            nuevos.append({
+                "fecha": fecha,
+                "hora": base.hora,
+                "disponible": True,
+                "barbero_id": barbero_id,
+                "barberia_id": barberia_id
+            })
 
-    stmt = insert(Horario).values(nuevos)
-    stmt = stmt.on_conflict_do_nothing(
-        index_elements=["fecha", "hora", "barbero_id"]
-    )
+    if nuevos:
+        stmt = insert(Horario).values(nuevos)
+        stmt = stmt.on_conflict_do_nothing(
+            index_elements=["fecha", "hora", "barbero_id"]
+        )
 
-    db.execute(stmt)
-    db.commit()
+        db.execute(stmt)
+        db.commit()
+
     db.close()
 
-    print("✅ Agenda generada automáticamente")
+
+# =========================
+# 3️⃣ AGENDA PARA TODA LA BARBERÍA
+# =========================
+def generar_agenda_barberia(barberia_id: int):
+    db = SesionLocal()
+
+    barberos = db.query(Usuario).filter(
+        Usuario.rol.in_([RolEnum.barbero, RolEnum.admin]),
+        Usuario.barberia_id == barberia_id
+    ).all()
+
+    db.close()
+
+    for barbero in barberos:
+        generar_agenda_barbero(barbero.id, barberia_id)

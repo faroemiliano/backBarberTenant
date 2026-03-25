@@ -15,3 +15,14 @@ class HorarioOut(BaseModel):
 
     class Config:
         orm_mode = True     
+
+
+class CrearBarberiaSchema(BaseModel):
+    nombre: str
+    slug: str
+    admin_email: str
+    admin_nombre: str
+    
+    class Config:
+        extra = "forbid"
+    

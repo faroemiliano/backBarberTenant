@@ -10,9 +10,10 @@ Base = declarative_base()
 # ENUM ROL
 # ======================
 class RolEnum(enum.Enum):
+    superadmin = "superadmin"
     admin = "admin"
-    cliente = "cliente"
     barbero = "barbero"
+    cliente = "cliente"
 
 # ======================
 # USUARIO
@@ -21,29 +22,24 @@ class Usuario(Base):
     __tablename__ = "usuarios"
 
     id = Column(Integer, primary_key=True)
-    nombre = Column(String(100), unique=True, nullable=False)
-    email = Column(String(150), unique=True, nullable=False, index=True)
+    nombre = Column(String(100), nullable=False)
+    email = Column(String(150), nullable=False, index=True )
     password = Column(String, nullable=True)
-    rol = Column(
-    Enum(RolEnum),
+    rol = Column(Enum(RolEnum),
     nullable=False,
     server_default=text("'cliente'")
 )
 
-    # Turnos como cliente
-    turnos = relationship(
-        "Turno",
-        back_populates="usuario",
-        cascade="all, delete-orphan",
-        foreign_keys="Turno.usuario_id"
-    )
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=True)
+    barberia = relationship("Barberia", back_populates="usuarios")
 
+    # Turnos como cliente
+    turnos = relationship("Turno", back_populates="usuario", cascade="all, delete-orphan", foreign_keys="Turno.usuario_id")
     # Turnos como barbero
-    turnos_barbero = relationship(
-        "Turno",
-        back_populates="barbero",
-        cascade="all, delete-orphan",
-        foreign_keys="Turno.barbero_id"
+    turnos_barbero = relationship("Turno", back_populates="barbero", cascade="all, delete-orphan", foreign_keys="Turno.barbero_id")
+
+    __table_args__ = (
+        UniqueConstraint("email", "barberia_id", name="uq_email_barberia"),
     )
 
     def __repr__(self):
@@ -59,9 +55,9 @@ class HorarioBase(Base):
     dia_semana = Column(String(15), nullable=False)
     hora = Column(Time, nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("dia_semana", "hora", name="uq_dia_hora_base"),
-    )
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=False)
+
+    __table_args__ = (UniqueConstraint("dia_semana", "hora", "barberia_id", name="uq_dia_hora_base_barberia"),)
 
     def __repr__(self):
         return f"<HorarioBase {self.dia_semana} {self.hora}>"
@@ -78,7 +74,7 @@ class Horario(Base):
     disponible = Column(Boolean, nullable=False, default=True)
 
     barbero_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
-
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=False)
     turno = relationship(
         "Turno",
         back_populates="horario",
@@ -104,10 +100,10 @@ class Servicio(Base):
     precio = Column(Float, nullable=False)
     activo = Column(Boolean, nullable=False, default=True)
 
-    turnos = relationship(
-        "Turno",
-        back_populates="servicio",
-    )
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=False)
+    barberia = relationship("Barberia", back_populates="servicios")
+
+    turnos = relationship("Turno", back_populates="servicio")
 
     def __repr__(self):
         return f"<Servicio {self.nombre} ${self.precio}>"
@@ -126,7 +122,7 @@ class Turno(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
     barbero_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
     servicio_id = Column(Integer, ForeignKey("servicios.id"), nullable=False)
-
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=False)
     precio = Column(Float, nullable=False)
 
     horario = relationship("Horario", back_populates="turno")
@@ -136,3 +132,15 @@ class Turno(Base):
 
     def __repr__(self):
         return f"<Turno {self.id} horario={self.horario_id} usuario={self.usuario_id} barbero={self.barbero_id}>"
+    
+class Barberia(Base):
+    __tablename__ = "barberias"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(100), nullable=False)
+    slug = Column(String(50), unique=True, nullable=False)
+    activo = Column(Boolean, default=True)
+
+    usuarios = relationship("Usuario", back_populates="barberia", cascade="all, delete-orphan")
+    servicios = relationship("Servicio", back_populates="barberia", cascade="all, delete-orphan")
+    activo = Column(Boolean, default=True)

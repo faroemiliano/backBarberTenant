@@ -7,6 +7,7 @@ from models import RolEnum, Usuario, Turno
 from auth.security import decode_token
 from datetime import date
 from passlib.context import CryptContext
+from dependencias.barberia import get_barberia
 
 from utils.horarios import generar_horarios_barbero
 
@@ -45,8 +46,13 @@ def get_admin_from_token(authorization: str, db: Session):
 # =========================
 
 @router.get("/usuarios")
-def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(Usuario).all()
+def listar_usuarios(
+    barberia = Depends(get_barberia),
+    db: Session = Depends(get_db)
+):
+    usuarios = db.query(Usuario).filter_by(
+        barberia_id=barberia.id
+    ).all()
 
     return [
         {
@@ -61,8 +67,16 @@ def listar_usuarios(db: Session = Depends(get_db)):
 # CAMBIAR ROL DE LOS USUARIOS(ADMIN)
 # =========================
 @router.put("/cambiar-rol/{user_id}")
-def cambiar_rol(user_id: int, data: dict, db: Session = Depends(get_db)):
-    user = db.query(Usuario).filter(Usuario.id == user_id).first()
+def cambiar_rol(
+    user_id: int,
+    data: dict,
+    barberia = Depends(get_barberia),
+    db: Session = Depends(get_db)
+):
+    user = db.query(Usuario).filter_by(
+        id=user_id,
+        barberia_id=barberia.id
+    ).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -76,18 +90,21 @@ def cambiar_rol(user_id: int, data: dict, db: Session = Depends(get_db)):
         generar_horarios_barbero(db, user)
 
     return {"msg": "Rol actualizado"}
+
 # =========================
 # VER TODOS LOS BARBEROS (ADMIN)
 # =========================
 @router.get("/barberos")
 def ver_barberos(
+    barberia = Depends(get_barberia),
     db: Session = Depends(get_db),
     authorization: str = Header(...)
 ):
     get_admin_from_token(authorization, db)
 
-    barberos = db.query(Usuario).filter_by(
-        rol=RolEnum.barbero
+    barberos = db.query(Usuario).filter(
+        Usuario.barberia_id == barberia.id,
+        Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
     ).all()
 
     return [
@@ -102,26 +119,31 @@ def ver_barberos(
 @router.get("/panel-barbero/{barbero_id}")
 def panel_barbero_admin(
     barbero_id: int,
+    barberia = Depends(get_barberia),
     db: Session = Depends(get_db),
     authorization: str = Header(...)
 ):
     get_admin_from_token(authorization, db)
 
-    barbero = db.query(Usuario).filter_by(
-        id=barbero_id,
-        rol=RolEnum.barbero
-    ).first()
+    barbero = db.query(Usuario).filter(
+    Usuario.id == barbero_id,
+    Usuario.barberia_id == barberia.id,
+    Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
+).first()
 
     if not barbero:
         raise HTTPException(status_code=404, detail="Barbero no encontrado")
 
     hoy = date.today()
 
-    # 🔹 Turnos con joins optimizados
+    # 🔹 Turnos con joins optimizados y filtrados por barbería
     turnos = (
         db.query(Turno)
         .options(joinedload(Turno.horario), joinedload(Turno.servicio))
-        .filter(Turno.barbero_id == barbero.id)
+        .filter(
+            Turno.barbero_id == barbero.id,
+            Turno.barberia_id == barberia.id
+        )
         .all()
     )
 
@@ -131,6 +153,7 @@ def panel_barbero_admin(
         .join(Turno.horario)
         .filter(
             Turno.barbero_id == barbero.id,
+            Turno.barberia_id == barberia.id,
             Turno.horario.has(fecha=hoy)
         )
         .scalar()
@@ -142,6 +165,7 @@ def panel_barbero_admin(
         .join(Turno.horario)
         .filter(
             Turno.barbero_id == barbero.id,
+            Turno.barberia_id == barberia.id,
             extract("month", Turno.horario.property.mapper.class_.fecha) == hoy.month,
             extract("year", Turno.horario.property.mapper.class_.fecha) == hoy.year
         )
