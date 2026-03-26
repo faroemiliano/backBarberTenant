@@ -207,32 +207,51 @@ def calendario_admin(
     db: Session = Depends(get_db),
     user = Depends(admin_required)
 ):
-    # 🔥 SI VIENE barbero_id → usar ese
-    # 🔥 SI NO → usar el admin logueado
-
     target_barbero_id = barbero_id if barbero_id else user.id
 
+    # 🔥 LIMITAR RANGO (CLAVE PARA PERFORMANCE)
+    hoy = date.today()
+    fin = hoy + timedelta(days=7)
+
+    # 🔥 1. TRAER HORARIOS (FILTRADOS)
     horarios = (
         db.query(Horario)
         .filter(
             Horario.barbero_id == target_barbero_id,
-            Horario.barberia_id == barberia.id
+            Horario.barberia_id == barberia.id,
+            Horario.fecha >= hoy,
+            Horario.fecha <= fin
         )
         .order_by(Horario.fecha, Horario.hora)
         .all()
     )
 
-    resultado = []
+    if not horarios:
+        return []
 
-    for h in horarios:
-        turno = db.query(Turno).filter_by(horario_id=h.id).first()
+    # 🔥 2. IDs DE HORARIOS
+    horario_ids = [h.id for h in horarios]
 
-        resultado.append({
+    # 🔥 3. TRAER TURNOS DE UNA
+    turnos = (
+        db.query(Turno.horario_id)
+        .filter(Turno.horario_id.in_(horario_ids))
+        .all()
+    )
+
+    # 🔥 4. SET ULTRA RÁPIDO
+    turnos_ocupados = {t.horario_id for t in turnos}
+
+    # 🔥 5. RESPUESTA OPTIMIZADA
+    resultado = [
+        {
             "id": h.id,
             "fecha": h.fecha.isoformat(),
             "hora": h.hora.strftime("%H:%M"),
-            "disponible": h.disponible and turno is None
-        })
+            "disponible": h.disponible and h.id not in turnos_ocupados
+        }
+        for h in horarios
+    ]
 
     return resultado
 
