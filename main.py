@@ -17,7 +17,7 @@ app = FastAPI(title="Barbería API")
 # =====================
 # RESET SOLO EN DESARROLLO
 # =====================
-RESET_DB = True
+RESET_DB = False
   # ⚠️ poner False en producción
 
 if RESET_DB:
