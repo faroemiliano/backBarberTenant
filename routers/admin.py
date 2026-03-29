@@ -28,7 +28,7 @@ def ver_turnos(
         db.query(Turno)
         .join(Horario)
         .join(Servicio)
-        .filter(Servicio.barberia_id == barberia.id)  # 🔹 filtrar barbería
+        .filter(Turno.barberia_id == barberia.id)  # 🔹 filtrar barbería
         .order_by(Horario.fecha, Horario.hora)
         .all()
     )
