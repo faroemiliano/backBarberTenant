@@ -63,7 +63,8 @@ def asignar_servicios_a_barbero(db: Session, barbero: Usuario):
         if not existe:
             db.add(BarberoServicio(
                 barbero_id=barbero.id,
-                servicio_id=s.id
+                servicio_id=s.id,
+                barberia_id=barbero.barberia_id  # 🔹 obligatorio
             ))
 
     db.commit()

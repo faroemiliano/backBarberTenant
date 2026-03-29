@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, extract
 from database import get_db
-from models import RolEnum, Usuario, Turno
+from models import Barberia, RolEnum, Usuario, Turno
 from auth.security import decode_token
 from datetime import date
 from passlib.context import CryptContext
@@ -31,16 +31,16 @@ def get_admin_from_token(authorization: str, db: Session):
     if not user_id:
         raise HTTPException(status_code=401, detail="Token inválido")
 
-    admin = db.query(Usuario).filter_by(
-        id=user_id,
-        rol=RolEnum.admin
+    # ✅ Aceptar admins y superadmins
+    admin = db.query(Usuario).filter(
+        Usuario.id == user_id,
+        Usuario.rol.in_([RolEnum.admin, RolEnum.superadmin])
     ).first()
 
     if not admin:
         raise HTTPException(status_code=403, detail="No autorizado")
 
     return admin
-
 
 
 # =========================
@@ -201,16 +201,30 @@ def panel_barbero_admin(
 @router.post("/set-barbero")
 def set_barbero(
     data: SetBarberoRequest,
-    barberia = Depends(get_barberia),
+    barberia: Barberia = Depends(get_barberia),
     db: Session = Depends(get_db),
-    authorization: str = Header(...)
+    authorization: str = Header(...),
 ):
-    admin = get_admin_from_token(authorization, db)
+    # 🔹 Obtener admin o superadmin de manera segura
+    try:
+        admin = get_admin_from_token(authorization, db)
+    except Exception:
+        raise HTTPException(401, "Token inválido o admin no encontrado")
 
-    # 🔥 VALIDACIÓN CLAVE
-    if admin.barberia_id != barberia.id:
+    if not admin:
+        raise HTTPException(401, "Token inválido o admin no encontrado")
+    print("🔥 admin.id:", admin.id)
+    print("🔥 admin.rol:", admin.rol)
+    print("🔥 admin.barberia_id:", admin.barberia_id)
+    print("🔥 barberia.id:", barberia.id)
+    # 🔹 Validación de permisos simplificada
+    # Si es superadmin, puede crear cualquier barbero
+    es_superadmin = admin.rol == RolEnum.superadmin
+
+    if not es_superadmin and admin.barberia_id != barberia.id:
         raise HTTPException(403, "No pertenece a esta barbería")
 
+    # 🔹 Buscar o crear usuario como barbero
     user = db.query(Usuario).filter_by(
         email=data.email,
         barberia_id=barberia.id
@@ -222,16 +236,18 @@ def set_barbero(
             nombre=data.nombre,
             rol=RolEnum.barbero,
             barberia_id=barberia.id,
-            password=None  # ✔ ahora válido
+            password=None
         )
         db.add(user)
         db.commit()
         db.refresh(user)
-
+        print(f"✅ Nuevo barbero creado: {user.email}")
     else:
         user.rol = RolEnum.barbero
         db.commit()
+        print(f"🔄 Barbero actualizado: {user.email}")
 
+    # 🔹 Generar horarios y asignar servicios
     generar_horarios_barbero(db, user)
     asignar_servicios_a_barbero(db, user)
 

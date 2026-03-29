@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from sqlalchemy.dialects.postgresql import insert
-from models import Horario, HorarioBase, RolEnum, Usuario
+from sqlalchemy.orm import Session
+from models import Barberia, Horario, HorarioBase, RolEnum, Usuario
 from database import SesionLocal
 
 DIAS = {
@@ -31,8 +32,11 @@ def dia_espanol(fecha: date):
 # =========================
 # 1️⃣ HORARIOS BASE
 # =========================
-def generar_horarios_base(barberia_id: int):
+def generar_horarios_base(barberia_id: int, db: Session):
     db = SesionLocal()
+    barberia = db.query(Barberia).filter_by(id=barberia_id).first()
+    if not barberia:
+        raise Exception("La barbería no existe, no se pueden generar horarios")
 
     for dia, franjas in FRANJAS.items():
         for inicio, fin in franjas:

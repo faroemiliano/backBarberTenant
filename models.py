@@ -96,7 +96,7 @@ class Servicio(Base):
     __tablename__ = "servicios"
 
     id = Column(Integer, primary_key=True)
-    nombre = Column(String(100), unique=True, nullable=False)
+    nombre = Column(String(100), nullable=False)
     precio = Column(Float, nullable=False)
     activo = Column(Boolean, nullable=False, default=True)
 
@@ -105,6 +105,9 @@ class Servicio(Base):
 
     turnos = relationship("Turno", back_populates="servicio")
 
+    __table_args__ = (
+    UniqueConstraint("nombre", "barberia_id", name="uq_servicio_barberia"),
+)
     def __repr__(self):
         return f"<Servicio {self.nombre} ${self.precio}>"
 
@@ -143,7 +146,7 @@ class Barberia(Base):
 
     usuarios = relationship("Usuario", back_populates="barberia", cascade="all, delete-orphan")
     servicios = relationship("Servicio", back_populates="barberia", cascade="all, delete-orphan")
-    activo = Column(Boolean, default=True)
+  
 
 
 class BarberoServicio(Base):
@@ -152,3 +155,10 @@ class BarberoServicio(Base):
     id = Column(Integer, primary_key=True, index=True)
     barbero_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     servicio_id = Column(Integer, ForeignKey("servicios.id"), nullable=False)
+    barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=False)
+    barbero = relationship("Usuario")
+    servicio = relationship("Servicio")
+    barberia = relationship("Barberia")
+    __table_args__ = (
+        UniqueConstraint("barbero_id", "servicio_id", name="uq_barbero_servicio"),
+    )

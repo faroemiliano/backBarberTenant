@@ -50,7 +50,7 @@ def crear_barberia(
     db.refresh(admin)
 
     # 🔥 generar horarios para este usuario (clave)
-    generar_horarios_base(admin.id)
+    generar_horarios_base(barberia.id, db)
 
     return {
         "ok": True,
