@@ -41,7 +41,7 @@ def crear_barberia(
     admin = Usuario(
         nombre=data.admin_nombre,
         email=data.admin_email,
-        password=hash_password("123456"),  # ⚠️ cambiable después
+        password=None,  # ⚠️ cambiable después
         rol=RolEnum.admin,
         barberia_id=barberia.id
     )
@@ -50,7 +50,7 @@ def crear_barberia(
     db.refresh(admin)
 
     # 🔥 generar horarios para este usuario (clave)
-    generar_horarios_base(barberia.id)
+    generar_horarios_base(admin.id)
 
     return {
         "ok": True,

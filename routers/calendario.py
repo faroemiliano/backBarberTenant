@@ -272,21 +272,3 @@ def reservar(data: SolicitudTurno, db: Session = Depends(get_db), authorization:
     return {"ok": True, "mensaje": "Turno reservado y enviado por email", "turno_id": turno.id}
 
 
-# =========================
-# LISTAR PROFESIONALES
-# =========================
-@router.get("/profesionales")
-def obtener_profesionales(
-    db: Session = Depends(get_db),
-    barberia = Depends(get_barberia)
-):
-    if not barberia:
-        raise HTTPException(status_code=400, detail="Falta x-barberia")
-
-    print("🔥 BARBERIA ID:", barberia.id)
-    profesionales = db.query(Usuario).filter(
-        Usuario.rol.in_([RolEnum.barbero, RolEnum.admin]),
-        Usuario.barberia_id == barberia.id
-    ).all()
-
-    return [{"id": p.id, "nombre": p.nombre} for p in profesionales]

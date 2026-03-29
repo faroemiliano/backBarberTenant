@@ -30,29 +30,29 @@ import resend
 #     except Exception as e:
 #         # Nunca dejar que el email rompa la request principal
 #         print("❌ Error enviando email:", str(e))
+resend.api_key = os.getenv("RESEND_API_KEY")
 def enviar_email(destino, asunto, texto, html=None):
 
+    print("📤 Intentando enviar email a:", destino)
+
     if not resend.api_key:
-        raise Exception("RESEND_API_KEY no configurada")
+        print("❌ API KEY NO CONFIGURADA")
+        return
 
-    EMAIL_TEST = os.getenv("EMAIL_TEST")
+    try:
+        contenido_html = html if html else f"<pre>{texto}</pre>"
 
-    real_destino = destino
+        resend.Emails.send({
+            "from": "Barberia <onboarding@resend.dev>",
+            "to": [destino],
+            "subject": asunto,
+            "html": contenido_html
+        })
 
-    # modo prueba: todo llega a vos
-    if EMAIL_TEST:
-        destino = EMAIL_TEST
-        print(f"[TEST MODE] {real_destino} -> {destino}")
+        print("✅ EMAIL ENVIADO")
 
-    contenido_html = html if html else f"<pre>{texto}</pre>"
-
-    resend.Emails.send({
-        "from": "Barberia <onboarding@resend.dev>",
-        "to": [destino],
-        "reply_to": real_destino,   # 👈 clave
-        "subject": asunto,
-        "html": contenido_html
-    })
+    except Exception as e:
+        print("❌ ERROR REAL:", str(e))
 # =========================================================
 # CONFIRMACION
 # =========================================================

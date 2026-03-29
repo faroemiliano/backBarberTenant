@@ -9,12 +9,14 @@ from datetime import date
 from passlib.context import CryptContext
 from dependencias.barberia import get_barberia
 
-from utils.horarios import generar_horarios_barbero
+from utils.horarios import asignar_servicios_a_barbero, generar_horarios_barbero
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
+class SetBarberoRequest(BaseModel):
+    email: str
+    nombre: str
 # =========================
 # HELPER VALIDAR ADMIN
 # =========================
@@ -25,7 +27,7 @@ def get_admin_from_token(authorization: str, db: Session):
     token = authorization.replace("Bearer ", "").strip()
     payload = decode_token(token)
 
-    user_id = payload.get("user_id")
+    user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token inválido")
 
@@ -195,3 +197,42 @@ def panel_barbero_admin(
         "dinero_diario": dinero_diario,
         "dinero_mensual": dinero_mensual
     }
+
+@router.post("/set-barbero")
+def set_barbero(
+    data: SetBarberoRequest,
+    barberia = Depends(get_barberia),
+    db: Session = Depends(get_db),
+    authorization: str = Header(...)
+):
+    admin = get_admin_from_token(authorization, db)
+
+    # 🔥 VALIDACIÓN CLAVE
+    if admin.barberia_id != barberia.id:
+        raise HTTPException(403, "No pertenece a esta barbería")
+
+    user = db.query(Usuario).filter_by(
+        email=data.email,
+        barberia_id=barberia.id
+    ).first()
+
+    if not user:
+        user = Usuario(
+            email=data.email,
+            nombre=data.nombre,
+            rol=RolEnum.barbero,
+            barberia_id=barberia.id,
+            password=None  # ✔ ahora válido
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    else:
+        user.rol = RolEnum.barbero
+        db.commit()
+
+    generar_horarios_barbero(db, user)
+    asignar_servicios_a_barbero(db, user)
+
+    return {"msg": "Barbero creado o actualizado"}

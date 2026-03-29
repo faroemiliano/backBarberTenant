@@ -10,14 +10,14 @@ from database import engine
 from models import Base
 
 # Routers
-from routers import admin_barberos, auth, barbero_solo, calendario, admin, auth_google, admin_servicios, mis_turnos, superadmin,barberia
+from routers import admin_barberos, auth, barbero_solo, calendario, admin,profesionales, auth_google, admin_servicios, mis_turnos, superadmin,barberia
 
 app = FastAPI(title="Barbería API")
 
 # =====================
 # RESET SOLO EN DESARROLLO
 # =====================
-RESET_DB = False
+RESET_DB = True
   # ⚠️ poner False en producción
 
 if RESET_DB:
@@ -67,6 +67,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://127.0.0.1:5173",
         "https://frontbarberiatenant.vercel.app",
     ],
     allow_credentials=True,
@@ -88,7 +89,7 @@ app.include_router(auth_google.router, prefix="", tags=["Auth Google"])
 app.include_router(calendario.router, prefix="", tags=["Calendario"])
 app.include_router(mis_turnos.router, prefix="", tags=["Turnos Usuario"])
 app.include_router(admin_servicios.router)
-
+app.include_router(profesionales.router)
 # =====================
 # ADMIN ROUTER
 # =====================

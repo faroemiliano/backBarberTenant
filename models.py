@@ -144,3 +144,11 @@ class Barberia(Base):
     usuarios = relationship("Usuario", back_populates="barberia", cascade="all, delete-orphan")
     servicios = relationship("Servicio", back_populates="barberia", cascade="all, delete-orphan")
     activo = Column(Boolean, default=True)
+
+
+class BarberoServicio(Base):
+    __tablename__ = "barbero_servicios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    barbero_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    servicio_id = Column(Integer, ForeignKey("servicios.id"), nullable=False)
