@@ -118,3 +118,4 @@ def eliminar_barberia(
     db.commit()
 
     return {"ok": True, "msg": "Barbería eliminada"}
+

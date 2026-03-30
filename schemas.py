@@ -26,3 +26,16 @@ class CrearBarberiaSchema(BaseModel):
     class Config:
         extra = "forbid"
     
+
+class BarberiaDemoSchema(BaseModel):
+    nombre: str
+    slug: str
+    activo: bool
+    demo: bool
+
+class UsuarioDemoSchema(BaseModel):
+    nombre: str
+    email: str
+    password: str
+    rol: str
+    barberia_id: int

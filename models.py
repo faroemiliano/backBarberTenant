@@ -146,6 +146,8 @@ class Barberia(Base):
 
     usuarios = relationship("Usuario", back_populates="barberia", cascade="all, delete-orphan")
     servicios = relationship("Servicio", back_populates="barberia", cascade="all, delete-orphan")
+
+    
   
 
 
