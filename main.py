@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
-from routers.demo import router as demo_router
 from dotenv import load_dotenv
 import os
 
@@ -83,10 +82,7 @@ app.add_middleware(
 # 🔥 SUPERADMIN (SaaS control)
 app.include_router(barberia.router)
 app.include_router(superadmin.router)
-# =====================
-# RUTA DEMO
-# =====================
-app.include_router(demo_router)
+
 # Auth / Google / Registro
 app.include_router(auth.router, prefix="", tags=["Auth"])
 app.include_router(auth_google.router, prefix="", tags=["Auth Google"])
