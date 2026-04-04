@@ -11,14 +11,14 @@ from database import engine
 from models import Base
 
 # Routers
-from routers import admin_barberos, auth, barbero_solo, calendario, admin,profesionales, auth_google, admin_servicios, mis_turnos, superadmin,barberia
+from routers import admin_barberos, auth, barberiaPersonal, barbero_solo, calendario, admin,profesionales, auth_google, admin_servicios, mis_turnos, superadmin
 
 app = FastAPI(title="Barbería API")
 
 # =====================
 # RESET SOLO EN DESARROLLO
 # =====================
-RESET_DB = False
+RESET_DB = True
   # ⚠️ poner False en producción
 
 if RESET_DB:
@@ -80,7 +80,7 @@ app.add_middleware(
 # ROUTERS
 # =====================
 # 🔥 SUPERADMIN (SaaS control)
-app.include_router(barberia.router)
+app.include_router(barberiaPersonal.router)
 app.include_router(superadmin.router)
 
 # Auth / Google / Registro

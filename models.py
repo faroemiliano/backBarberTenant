@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Boolean, Date, Time, ForeignKey, UniqueConstraint, Index, Float, Enum, text
+    JSON, Column, Integer, String, Boolean, Date, Time, ForeignKey, UniqueConstraint, Index, Float, Enum, text
 )
 import enum
 from sqlalchemy.orm import relationship, declarative_base
@@ -147,7 +147,23 @@ class Barberia(Base):
     usuarios = relationship("Usuario", back_populates="barberia", cascade="all, delete-orphan")
     servicios = relationship("Servicio", back_populates="barberia", cascade="all, delete-orphan")
 
-    
+    # Configuración visual
+    logo_url = Column(String, nullable=True)
+    color_primario = Column(String, default="#000000")
+    color_secundario = Column(String, default="#ffffff")
+    fondo_url = Column(String, nullable=True)
+    footer_texto = Column(String, nullable=True)
+
+    # Redes y contacto
+    instagram_url = Column(String, nullable=True)
+    whatsapp_url = Column(String, nullable=True)
+    ubicacion_url = Column(String, nullable=True)  # google maps link
+    horarios_texto = Column(String, default="")
+    galeria = Column(JSON, default=[])
+    fondo_color = Column(String, nullable=True)
+    fondo_color_footer = Column(String, nullable=True)
+    fondo_color_videos = Column(String, nullable=True)
+    fondo_color_navbar = Column(String, nullable=True)
   
 
 

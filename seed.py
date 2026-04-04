@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta
 import random
 
-from database import SesionLocal
+from database import SessionLocal
 from models import Usuario, Servicio, Turno
 
 # =====================
@@ -22,7 +22,7 @@ HORAS_DISPONIBLES = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:0
 # =====================
 # INICIAR SESIÓN DB
 # =====================
-db = SesionLocal()
+db = SessionLocal()
 
 # =====================
 # CREAR ADMIN SI NO EXISTE

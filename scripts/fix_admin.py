@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database import SesionLocal
+from database import SessionLocal
 from models import Usuario
 from werkzeug.security import generate_password_hash
 import os
@@ -17,7 +17,7 @@ MI_EMAIL = os.getenv("MI_EMAIL", "tu_email@ejemplo.com")
 # ---------------------
 # Conexión DB
 # ---------------------
-db: Session = SesionLocal()
+db: Session = SessionLocal()
 
 try:
     # 1️⃣ Desactivar tu usuario si existe

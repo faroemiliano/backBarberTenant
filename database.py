@@ -22,14 +22,14 @@ engine = create_engine(
     pool_pre_ping=True
 )
 
-SesionLocal = sessionmaker(
+SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
 )
 
 def get_db():
-    db = SesionLocal()
+    db = SessionLocal()
     try:
         yield db
     finally:

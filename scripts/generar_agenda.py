@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 load_dotenv()
 
 from datetime import date, datetime, time, timedelta
-from database import SesionLocal
+from database import SessionLocal
 from models import Horario, HorarioBase, RolEnum, Usuario
 
 # ========================
@@ -36,7 +36,7 @@ FRANJAS = {
 
 INTERVALO = 30  # minutos
 
-db = SesionLocal()
+db = SessionLocal()
 
 # ========================
 # 1️⃣ Generar horarios base si no existen

@@ -1,7 +1,7 @@
-from database import SesionLocal
+from database import SessionLocal
 from models import Usuario
 
-db = SesionLocal()
+db = SessionLocal()
 
 user = db.query(Usuario).filter(Usuario.email == "faroemiliano@gmail.com").first()
 
