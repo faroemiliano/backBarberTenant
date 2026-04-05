@@ -33,10 +33,9 @@ def dia_espanol(fecha: date):
 # 1️⃣ HORARIOS BASE
 # =========================
 def generar_horarios_base(barberia_id: int, db: Session):
-    db = SessionLocal()
     barberia = db.query(Barberia).filter_by(id=barberia_id).first()
     if not barberia:
-        raise Exception("La barbería no existe, no se pueden generar horarios")
+        raise Exception("La barbería no existe")
 
     for dia, franjas in FRANJAS.items():
         for inicio, fin in franjas:
@@ -61,8 +60,7 @@ def generar_horarios_base(barberia_id: int, db: Session):
                     + timedelta(minutes=INTERVALO)
                 ).time()
 
-    db.commit()
-    db.close()
+    db.commit()  # ✔ usar la misma sesión
 
 
 # =========================
