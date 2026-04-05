@@ -21,7 +21,7 @@ def require_superadmin(user: Usuario):
 def crear_barberia(
     data: CrearBarberiaSchema,
     db: Session = Depends(get_db),
-    user: Usuario = Depends(superadmin_required)
+    # user: Usuario = Depends(superadmin_required)
 ):
     # validar slug único
     existe = db.query(Barberia).filter_by(slug=data.slug).first()
