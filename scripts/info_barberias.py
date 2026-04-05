@@ -9,7 +9,7 @@ from models import Barberia
 
 db: Session = SessionLocal()
 
-def upsert_barberia(data):
+def upsert_barberia(db: Session,data):
     barberia = db.query(Barberia).filter_by(slug=data["slug"]).first()
 
     if not barberia:
@@ -54,11 +54,11 @@ def upsert_barberia(data):
         barberia.fondo_color = data["fondo_color"]    
 
 
-def datosParticularesBarberias():
+def datosParticularesBarberias(db: Session):
     # 🔥 YA NO BORRAMOS NADA
 
-    upsert_barberia({
-    "slug": "prueba1",
+    upsert_barberia(db,{
+    "slug": "prueba2",
     "nombre": "Demo Barbería",
     "footer_texto": "direccion!!",
     "horarios_texto": "Martes a Jueves: 11-20\nViernes: 10-18",
@@ -76,7 +76,7 @@ def datosParticularesBarberias():
     ]
 })
 
-    upsert_barberia({
+    upsert_barberia(db,{
         "slug": "prueba2",
         "nombre": "Prueba 2",
         "footer_texto": "© 2026 Prueba 2",
@@ -89,4 +89,4 @@ def datosParticularesBarberias():
 
 
 if __name__ == "__main__":
-    datosParticularesBarberias()
+    datosParticularesBarberias(db)

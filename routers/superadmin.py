@@ -5,6 +5,7 @@ from auth.deps import get_current_user, superadmin_required
 from models import Barberia, Usuario, RolEnum
 from schemas import CrearBarberiaSchema
 from database import get_db
+from scripts.info_barberias import datosParticularesBarberias
 from services.agenda_service import generar_horarios_base
 from auth.security import hash_password
 
@@ -21,7 +22,7 @@ def require_superadmin(user: Usuario):
 def crear_barberia(
     data: CrearBarberiaSchema,
     db: Session = Depends(get_db),
-    # user: Usuario = Depends(superadmin_required)
+    user: Usuario = Depends(superadmin_required)
 ):
     # validar slug único
     existe = db.query(Barberia).filter_by(slug=data.slug).first()
@@ -60,15 +61,18 @@ def crear_barberia(
     }
 
 @router.get("/listar-barberias")
-def listar_barberias(
-    db: Session = Depends(get_db),
-    user: Usuario = Depends(superadmin_required)  # 🔹 cambio aquí
-):
-    barberias = db.query(Barberia).all()
-    return [
-        {"id": b.id, "nombre": b.nombre, "slug": b.slug}
-        for b in barberias
-    ]
+def listar_barberias(db: Session = Depends(get_db)):
+    try:
+        barberias = db.query(Barberia).all()
+
+        return [
+            {"id": b.id, "nombre": b.nombre, "slug": b.slug}
+            for b in barberias
+        ]
+
+    except Exception as e:
+        print("💣 ERROR REAL:", repr(e))
+        raise HTTPException(500, str(e))
 
 @router.put("/bloquear-barberia/{barberia_id}")
 def bloquear_barberia(
@@ -119,3 +123,9 @@ def eliminar_barberia(
 
     return {"ok": True, "msg": "Barbería eliminada"}
 
+@router.get("/run-seed")
+def run_seed(
+    db: Session = Depends(get_db)
+):
+    datosParticularesBarberias(db)
+    return {"ok": True}
