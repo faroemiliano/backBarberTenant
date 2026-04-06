@@ -23,16 +23,30 @@ def get_config(slug: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No existe la barbería")
     
     return {
+        "id": barberia.id,
         "nombre": barberia.nombre,
+        "slug": barberia.slug,
+        "activo": barberia.activo,
+
+        # 🎨 visual
         "logo_url": barberia.logo_url,
         "color_primario": barberia.color_primario,
         "color_secundario": barberia.color_secundario,
-        "fondo": barberia.fondo_url,
-        "footer": barberia.footer_texto,
-        "instagram": barberia.instagram_url,
-        "whatsapp": barberia.whatsapp_url,
-        "ubicacion": barberia.ubicacion_url,
-        "horarios": barberia.horarios_texto,
+        "fondo_url": barberia.fondo_url,
+        "footer_texto": barberia.footer_texto,
+
+        # 📱 contacto
+        "instagram_url": barberia.instagram_url,
+        "whatsapp_url": barberia.whatsapp_url,
+        "ubicacion_url": barberia.ubicacion_url,
+        "horarios_texto": barberia.horarios_texto,
+
+        # 🎬 contenido
         "galeria": barberia.galeria,
-        "fondo_color": barberia.fondo_color
+
+        # 🎯 estilos
+        "fondo_color": barberia.fondo_color,
+        "fondo_color_footer": barberia.fondo_color_footer,
+        "fondo_color_videos": barberia.fondo_color_videos,
+        "fondo_color_navbar": barberia.fondo_color_navbar,
     }
