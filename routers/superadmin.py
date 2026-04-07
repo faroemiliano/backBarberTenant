@@ -169,10 +169,19 @@ def actualizar_barberia(
     if not barberia:
         raise HTTPException(status_code=404, detail="Barbería no encontrada")
 
-    # 🔥 actualizar dinámicamente SOLO lo que viene
+    mapa = {
+        "footer_texto": "footer",
+        "horarios_texto": "horarios",
+        "instagram_url": "instagram",
+        "whatsapp_url": "whatsapp",
+        "ubicacion_url": "ubicacion",
+    }
+
     for key, value in data.items():
-        if hasattr(barberia, key):
-            setattr(barberia, key, value)
+        db_key = mapa.get(key, key)
+
+        if hasattr(barberia, db_key) and value is not None:
+            setattr(barberia, db_key, value)
 
     db.commit()
     db.refresh(barberia)
