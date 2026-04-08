@@ -77,7 +77,7 @@ def listar_barberias(db: Session = Depends(get_db)):
             "color_primario": b.color_primario,
             "color_secundario": b.color_secundario,
             "fondo_url": b.fondo_url,
-            "footer_texto": b.footer_texto,
+            "direccion": b.direccion,
 
             # 📱 contacto
             "instagram_url": b.instagram_url,
