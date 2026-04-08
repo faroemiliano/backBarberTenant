@@ -174,7 +174,7 @@ def actualizar_barberia(
         "horarios_texto": "horarios",
         "instagram_url": "instagram",
         "whatsapp_url": "whatsapp",
-        "ubicacion_url": "ubicacion",
+        "ubicacion_url": "ubicacion_url",
     }
 
     for key, value in data.items():

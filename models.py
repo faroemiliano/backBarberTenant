@@ -153,6 +153,7 @@ class Barberia(Base):
     color_secundario = Column(String, default="#ffffff")
     fondo_url = Column(String, nullable=True)
     footer_texto = Column(String, nullable=True)
+    direccion = Column(String, nullable=True)
 
     # Redes y contacto
     instagram_url = Column(String, nullable=True)

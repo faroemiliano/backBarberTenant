@@ -34,6 +34,7 @@ def get_config(slug: str, db: Session = Depends(get_db)):
         "color_secundario": barberia.color_secundario,
         "fondo_url": barberia.fondo_url,
         "footer_texto": barberia.footer_texto,
+        "direccion": barberia.direccion,
 
         # 📱 contacto
         "instagram_url": barberia.instagram_url,
