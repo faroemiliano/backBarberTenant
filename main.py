@@ -70,8 +70,11 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://frontbarberiatenant.vercel.app",
+        "https://farixio.com",
+        "https://www.farixio.com",
     ],
     allow_credentials=True,
+    allow_origin_regex="https://.*\\.farixio\\.com"
     allow_methods=["*"],
     allow_headers=["*"],
 )
