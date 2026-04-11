@@ -74,7 +74,7 @@ app.add_middleware(
         "https://www.farixio.com",
     ],
     allow_credentials=True,
-    allow_origin_regex="https://.*\\.farixio\\.com"
+    allow_origin_regex="https://.*\\.farixio\\.com",
     allow_methods=["*"],
     allow_headers=["*"],
 )
