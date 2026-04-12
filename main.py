@@ -31,7 +31,7 @@ Base.metadata.create_all(bind=engine)
 print("✅ Tablas creadas")
 
 
-
+print("🔥 BACKEND ACTIVE")
 
 # =====================
 # OPENAPI / JWT
@@ -76,19 +76,10 @@ app.add_middleware(
     allow_credentials=True,
    
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "x-barberia"],
 )
-@app.options("/{full_path:path}")
-async def preflight_handler(full_path: str):
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "https://www.farixio.com",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Allow-Credentials": "true",
-        },
-    )
+
+print("🔥 CORS LOADED")
 
 # =====================
 # ROUTERS
