@@ -137,25 +137,28 @@ def activar_barberia(
     return {"ok": True, "msg": "Barbería activada"}
 
 @router.delete("/eliminar-barberia/{barberia_id}")
-def eliminar_barberia(barberia_id: int, db: Session = Depends(get_db), user: Usuario = Depends(superadmin_required)):
-
+def eliminar_barberia(
+    barberia_id: int,
+    db: Session = Depends(get_db),
+    user: Usuario = Depends(superadmin_required)
+):
     barberia = db.query(Barberia).filter_by(id=barberia_id).first()
 
     if not barberia:
         raise HTTPException(404, "Barbería no encontrada")
 
     try:
-        # 1️⃣ lo más profundo primero
-        db.execute("DELETE FROM barbero_servicios WHERE barberia_id = %s", (barberia_id,))
+        # 1️⃣ barbero_servicios
+        db.execute(text("DELETE FROM barbero_servicios WHERE barberia_id = :id"), {"id": barberia_id})
 
-        # 2️⃣ horarios de barberos
-        db.execute("DELETE FROM horarios WHERE barberia_id = %s", (barberia_id,))
+        # 2️⃣ horarios
+        db.execute(text("DELETE FROM horarios WHERE barberia_id = :id"), {"id": barberia_id})
 
-        # 3️⃣ horarios base
-        db.execute("DELETE FROM horarios_base WHERE barberia_id = %s", (barberia_id,))
+        # 3️⃣ horarios_base
+        db.execute(text("DELETE FROM horarios_base WHERE barberia_id = :id"), {"id": barberia_id})
 
         # 4️⃣ usuarios
-        db.execute("DELETE FROM usuarios WHERE barberia_id = %s", (barberia_id,))
+        db.execute(text("DELETE FROM usuarios WHERE barberia_id = :id"), {"id": barberia_id})
 
         # 5️⃣ barbería
         db.delete(barberia)
