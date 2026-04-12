@@ -80,6 +80,7 @@ app.add_middleware(
 )
 @app.options("/{full_path:path}")
 async def preflight_handler(full_path: str):
+    print("🔥 PRELIGHT HIT:", full_path)
     return Response(status_code=200)
 
 # =====================
