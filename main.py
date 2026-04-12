@@ -15,11 +15,7 @@ from routers import admin_barberos, auth, barberiaPersonal, barbero_solo, calend
 
 app = FastAPI(title="Barbería API")
 
-@app.middleware("http")
-async def cors_preflight_fix(request: Request, call_next):
-    if request.method == "OPTIONS":
-        return Response(status_code=200)
-    return await call_next(request)
+
 # =====================
 # RESET SOLO EN DESARROLLO
 # =====================
