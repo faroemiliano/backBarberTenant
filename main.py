@@ -80,8 +80,15 @@ app.add_middleware(
 )
 @app.options("/{full_path:path}")
 async def preflight_handler(full_path: str):
-    print("🔥 PRELIGHT HIT:", full_path)
-    return Response(status_code=200)
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "https://www.farixio.com",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        },
+    )
 
 # =====================
 # ROUTERS
