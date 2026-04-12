@@ -1,5 +1,5 @@
 # routers/superadmin.py
-from pydoc import text
+from sqlalchemy import text
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
