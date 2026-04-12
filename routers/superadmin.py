@@ -148,23 +148,22 @@ def eliminar_barberia(
         raise HTTPException(404, "Barbería no encontrada")
 
     try:
-        # 🔥 1. horarios_base
-        db.query(HorarioBase).filter_by(barberia_id=barberia_id).delete()
+        # 🔥 borrar todo lo dependiente primero
+        db.execute(text("DELETE FROM horarios WHERE barberia_id = :id"), {"id": barberia_id})
+        db.execute(text("DELETE FROM horarios_base WHERE barberia_id = :id"), {"id": barberia_id})
+        db.execute(text("DELETE FROM usuarios WHERE barberia_id = :id"), {"id": barberia_id})
 
-        # 🔥 2. usuarios
-        db.query(Usuario).filter_by(barberia_id=barberia_id).delete()
-
-        # 🔥 3. barbería
+        # 🔥 borrar barbería
         db.delete(barberia)
 
         db.commit()
 
-        return {"ok": True, "msg": "Barbería eliminada correctamente"}
+        return {"ok": True}
 
     except Exception as e:
         db.rollback()
-        print("🔥 ERROR DELETE:", str(e))
-        raise HTTPException(500, str(e))
+        print("🔥 ERROR DELETE:", repr(e))
+        raise HTTPException(500, "Error eliminando barbería")
     
 @router.get("/run-seed")
 def run_seed(
