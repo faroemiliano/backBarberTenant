@@ -16,110 +16,123 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 # =========================
 # LOGIN GOOGLE (MULTI-TENANT)
 # =========================
-# @router.post("/auth/google")
-# def login_google(
-#     payload: dict,
-#     db: Session = Depends(get_db),
-#     x_barberia: str | None = Header(default=None)
-# ):
-#     try:
-#         token = payload["credential"]
-
-#         idinfo = id_token.verify_oauth2_token(
-#             token,
-#             requests.Request(),
-#             GOOGLE_CLIENT_ID
-#         )
-
-#         email = idinfo["email"]
-#         nombre = idinfo.get("name", "")
-
-#         # =========================
-#         # 🔥 1. SUPERADMIN GLOBAL
-#         # =========================
-#         user = db.query(Usuario).filter_by(
-#             email=email,
-#             rol=RolEnum.superadmin
-#         ).first()
-
-#         if user:
-#             jwt = create_token({
-#                 "sub": str(user.id),
-#                 "rol": user.rol.value,
-#                 "barberia_id": None
-#             })
-
-#             return {
-#                 "access_token": jwt,
-#                 "user": {
-#                     "id": user.id,
-#                     "nombre": user.nombre,
-#                     "email": user.email,
-#                     "rol": user.rol.value,
-#                     "barberia_id": None
-#                 }
-#             }
-
-#         # =========================
-#         # 🔥 2. REQUIERE BARBERÍA
-#         # =========================
-#         if not x_barberia:
-#             raise HTTPException(400, "Falta x-barberia")
-
-#         barberia = db.query(Barberia).filter_by(slug=x_barberia).first()
-
-#         if not barberia:
-#             raise HTTPException(404, "Barberia no encontrada")
-
-#         # =========================
-#         # 🔥 3. BUSCAR USUARIO EN ESA BARBERÍA
-#         # =========================
-#         user = db.query(Usuario).filter_by(
-#             email=email,
-#             barberia_id=barberia.id
-#         ).first()
-
-#         # =========================
-#         # 🔥 4. CREAR CLIENTE SI NO EXISTE
-#         # =========================
-#         if not user:
-#             user = Usuario(
-#                 nombre=nombre,
-#                 email=email,
-#                 rol=RolEnum.cliente,
-#                 barberia_id=barberia.id
-#             )
-#             db.add(user)
-#             db.commit()
-#             db.refresh(user)
-
-#         # =========================
-#         # 🔥 5. JWT FINAL
-#         # =========================
-#         jwt = create_token({
-#             "sub": str(user.id),
-#             "rol": user.rol.value,
-#             "barberia_id": barberia.id
-#         })
-
-#         return {
-#             "access_token": jwt,
-#             "user": {
-#                 "id": user.id,
-#                 "nombre": user.nombre,
-#                 "email": user.email,
-#                 "rol": user.rol.value,
-#                 "barberia_id": barberia.id
-#             }
-#         }
-
-#     except Exception as e:
-#         print("💥 ERROR GOOGLE AUTH:", str(e))
-#         raise HTTPException(status_code=401, detail=str(e))
-
 @router.post("/auth/google")
-def login_google(payload: dict):
-    return {"ok": True}
+def login_google(
+    payload: dict,
+    db: Session = Depends(get_db),
+    x_barberia: str | None = Header(default=None)
+):
+    try:
+        print("🔥 PAYLOAD GOOGLE:", payload)
+
+        token = payload.get("credential")
+
+        if not token:
+            print("❌ NO CREDENTIAL RECIBIDO")
+            raise HTTPException(status_code=400, detail="No credential provided")
+
+        # =========================
+        # VERIFY GOOGLE TOKEN
+        # =========================
+        try:
+            idinfo = id_token.verify_oauth2_token(
+                token,
+                requests.Request(),
+                GOOGLE_CLIENT_ID
+            )
+        except Exception as e:
+            print("💥 GOOGLE VERIFY ERROR:", str(e))
+            raise HTTPException(status_code=401, detail="Invalid Google token")
+
+        email = idinfo.get("email")
+        nombre = idinfo.get("name", "")
+
+        if not email:
+            raise HTTPException(status_code=401, detail="Google email missing")
+
+        # =========================
+        # SUPERADMIN
+        # =========================
+        user = db.query(Usuario).filter_by(
+            email=email,
+            rol=RolEnum.superadmin
+        ).first()
+
+        if user:
+            jwt = create_token({
+                "sub": str(user.id),
+                "rol": user.rol.value,
+                "barberia_id": None
+            })
+
+            return {
+                "access_token": jwt,
+                "user": {
+                    "id": user.id,
+                    "nombre": user.nombre,
+                    "email": user.email,
+                    "rol": user.rol.value,
+                    "barberia_id": None
+                }
+            }
+
+        # =========================
+        # BARBERIA REQUIRED
+        # =========================
+        if not x_barberia:
+            raise HTTPException(status_code=400, detail="Falta x-barberia")
+
+        barberia = db.query(Barberia).filter_by(slug=x_barberia).first()
+
+        if not barberia:
+            raise HTTPException(status_code=404, detail="Barberia no encontrada")
+
+        # =========================
+        # USER
+        # =========================
+        user = db.query(Usuario).filter_by(
+            email=email,
+            barberia_id=barberia.id
+        ).first()
+
+        if not user:
+            user = Usuario(
+                nombre=nombre,
+                email=email,
+                rol=RolEnum.cliente,
+                barberia_id=barberia.id
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        # =========================
+        # JWT
+        # =========================
+        jwt = create_token({
+            "sub": str(user.id),
+            "rol": user.rol.value,
+            "barberia_id": barberia.id
+        })
+
+        return {
+            "access_token": jwt,
+            "user": {
+                "id": user.id,
+                "nombre": user.nombre,
+                "email": user.email,
+                "rol": user.rol.value,
+                "barberia_id": barberia.id
+            }
+        }
+
+    except HTTPException as he:
+        print("⚠️ HTTP ERROR:", he.detail)
+        raise he
+
+    except Exception as e:
+        print("💥 UNEXPECTED ERROR:", str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # =========================
 # LOGIN TEST (MULTI-TENANT)
