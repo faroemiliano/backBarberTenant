@@ -1,8 +1,10 @@
 # routers/superadmin.py
+from pydoc import text
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from auth.deps import get_current_user, superadmin_required
-from models import Barberia, Usuario, RolEnum
+from models import Barberia, Horario, HorarioBase, Servicio, Turno, Usuario, RolEnum
 from schemas import CrearBarberiaSchema
 from database import get_db
 from scripts.info_barberias import datosParticularesBarberias
@@ -145,11 +147,25 @@ def eliminar_barberia(
     if not barberia:
         raise HTTPException(404, "Barbería no encontrada")
 
-    db.delete(barberia)
-    db.commit()
+    try:
+        # 🔥 1. horarios_base
+        db.query(HorarioBase).filter_by(barberia_id=barberia_id).delete()
 
-    return {"ok": True, "msg": "Barbería eliminada"}
+        # 🔥 2. usuarios
+        db.query(Usuario).filter_by(barberia_id=barberia_id).delete()
 
+        # 🔥 3. barbería
+        db.delete(barberia)
+
+        db.commit()
+
+        return {"ok": True, "msg": "Barbería eliminada correctamente"}
+
+    except Exception as e:
+        db.rollback()
+        print("🔥 ERROR DELETE:", str(e))
+        raise HTTPException(500, str(e))
+    
 @router.get("/run-seed")
 def run_seed(
     db: Session = Depends(get_db)
