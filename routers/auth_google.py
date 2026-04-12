@@ -119,7 +119,7 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 @router.post("/auth/google")
 def login_google(payload: dict):
-    return {"ok": True, "received": payload}
+    return {"ok": True}
 
 # =========================
 # LOGIN TEST (MULTI-TENANT)
