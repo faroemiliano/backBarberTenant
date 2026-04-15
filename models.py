@@ -165,7 +165,10 @@ class Barberia(Base):
     fondo_color_footer = Column(String, nullable=True)
     fondo_color_videos = Column(String, nullable=True)
     fondo_color_navbar = Column(String, nullable=True)
-  
+
+    # cada barberia puede configurar su horario 
+    horario_config = Column(JSON, nullable=True)
+    duracion = Column(Integer)
 
 
 class BarberoServicio(Base):

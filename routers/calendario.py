@@ -59,6 +59,76 @@ def calendario(barbero_id: int, db: Session = Depends(get_db), barberia = Depend
 # =========================
 # GENERAR TODO EL AÑO (CALENDARIO)
 # =========================
+# @router.post("/preparar-calendario")
+# def preparar_calendario(
+#     data: BarberiaRequest,
+#     db: Session = Depends(get_db)
+# ):
+#     barberia = db.query(Barberia).get(data.barberia_id)
+
+#     if not barberia:
+#         raise HTTPException(404, "Barberia no encontrada")
+
+#     anio = date.today().year
+#     inicio = date(anio, 1, 1)
+#     fin = date(anio, 12, 31)
+
+#     # 🔥 limpiar SOLO de esa barbería
+#     db.query(Turno).filter(Turno.barberia_id == barberia.id).delete()
+#     db.query(Horario).filter(Horario.barberia_id == barberia.id).delete()
+#     db.commit()
+
+#     barberos = db.query(Usuario).filter(
+#         Usuario.barberia_id == barberia.id,
+#         Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
+#     ).all()
+
+#     if not barberos:
+#         raise HTTPException(400, "No hay barberos en esta barbería")
+
+#     creados = 0
+#     actual = inicio
+
+#     while actual <= fin:
+#         dia = actual.weekday()
+
+#         if dia in [1,2,3]:
+#             franjas = [(11,14),(15,20)]
+#         elif dia in [4,5]:
+#             franjas = [(10,14),(15,20)]
+#         else:
+#             actual += timedelta(days=1)
+#             continue
+
+#         for inicio_h, fin_h in franjas:
+#             hora = inicio_h
+#             while hora <= fin_h:
+#                 for barbero in barberos:
+#                     db.add(Horario(
+#                         fecha=actual,
+#                         hora=time(hora,0),
+#                         disponible=True,
+#                         barbero_id=barbero.id,
+#                         barberia_id=barberia.id
+#                     ))
+
+#                     if hora != fin_h:
+#                         db.add(Horario(
+#                             fecha=actual,
+#                             hora=time(hora,30),
+#                             disponible=True,
+#                             barbero_id=barbero.id,
+#                             barberia_id=barberia.id
+#                         ))
+#                         creados += 1
+
+#                 hora += 1
+
+#         actual += timedelta(days=1)
+
+#     db.commit()
+
+#     return {"ok": True, "horarios_creados": creados}
 @router.post("/preparar-calendario")
 def preparar_calendario(
     data: BarberiaRequest,
@@ -68,6 +138,11 @@ def preparar_calendario(
 
     if not barberia:
         raise HTTPException(404, "Barberia no encontrada")
+
+    # 🔥 CONFIG POR BARBERÍA
+    config = barberia.horario_config or {}
+
+    dias_map = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
     anio = date.today().year
     inicio = date(anio, 1, 1)
@@ -90,45 +165,49 @@ def preparar_calendario(
     actual = inicio
 
     while actual <= fin:
-        dia = actual.weekday()
+        nombre_dia = dias_map[actual.weekday()]
 
-        if dia in [1,2,3]:
-            franjas = [(11,14),(15,20)]
-        elif dia in [4,5]:
-            franjas = [(10,14),(15,20)]
-        else:
+        franjas = config.get(nombre_dia)
+
+        print("📅 DIA:", nombre_dia)
+        print("🕐 FRANJAS:", franjas)
+
+        if not franjas:
             actual += timedelta(days=1)
             continue
 
         for inicio_h, fin_h in franjas:
-            hora = inicio_h
-            while hora <= fin_h:
+            print("➡️ PROCESANDO:", inicio_h, fin_h)
+
+            duracion = barberia.duracion or 30
+
+            hora_actual = datetime.combine(actual, time(inicio_h, 0))
+            fin_datetime = datetime.combine(actual, time(fin_h, 0))
+
+            while hora_actual < fin_datetime:
                 for barbero in barberos:
                     db.add(Horario(
                         fecha=actual,
-                        hora=time(hora,0),
+                        hora=hora_actual.time(),
                         disponible=True,
                         barbero_id=barbero.id,
                         barberia_id=barberia.id
                     ))
 
-                    if hora != fin_h:
-                        db.add(Horario(
-                            fecha=actual,
-                            hora=time(hora,30),
-                            disponible=True,
-                            barbero_id=barbero.id,
-                            barberia_id=barberia.id
-                        ))
-                        creados += 1
+                    creados += 1
 
-                hora += 1
+                hora_actual += timedelta(minutes=duracion)
 
+    # ✅ AHORA SÍ, AFUERA
         actual += timedelta(days=1)
 
+    print("HORARIOS A CREAR:", creados)
     db.commit()
 
-    return {"ok": True, "horarios_creados": creados}
+    return {
+        "ok": True,
+        "horarios_creados": creados
+            }
 
 
 # =========================

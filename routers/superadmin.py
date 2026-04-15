@@ -1,4 +1,5 @@
 # routers/superadmin.py
+from rsa import key
 from sqlalchemy import text
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,9 +34,16 @@ def crear_barberia(
 
     # crear barbería
     barberia = Barberia(
-        nombre=data.nombre,
-        slug=data.slug
-    )
+    nombre=data.nombre,
+    slug=data.slug,
+    horario_config={
+        "lunes": [[10, 14], [15, 20]],
+        "martes": [[10, 14], [15, 20]],
+        "miercoles": [[11, 14], [15, 20]],
+        "jueves": [[11, 14], [15, 20]],
+        "viernes": [[10, 14], [15, 20]]
+    }
+)
     db.add(barberia)
     db.commit()
     db.refresh(barberia)
@@ -95,6 +103,8 @@ def listar_barberias(db: Session = Depends(get_db)):
             "fondo_color_footer": b.fondo_color_footer,
             "fondo_color_videos": b.fondo_color_videos,
             "fondo_color_navbar": b.fondo_color_navbar,
+            "horario_config": b.horario_config,
+            "duracion": b.duracion
         }
             for b in barberias
         ]
@@ -192,6 +202,25 @@ def actualizar_barberia(
         raise HTTPException(status_code=404, detail="Barbería no encontrada")
 
     for key, value in data.items():
+
+        # 🔥 VALIDAR HORARIO_CONFIG
+        if key == "horario_config":
+            if not isinstance(value, dict):
+                raise HTTPException(400, "Horario inválido")
+
+            for dia, franjas in value.items():
+                if not isinstance(franjas, list):
+                    raise HTTPException(400, f"Formato inválido en {dia}")
+
+                for franja in franjas:
+                    if (
+                        not isinstance(franja, list)
+                        or len(franja) != 2
+                        or not all(isinstance(h, int) for h in franja)
+                    ):
+                        raise HTTPException(400, f"Franja inválida en {dia}")
+
+        # 🔥 SETEO NORMAL
         if hasattr(barberia, key) and value is not None:
             setattr(barberia, key, value)
 
