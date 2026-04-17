@@ -102,7 +102,7 @@ class Servicio(Base):
 
     barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=False)
     barberia = relationship("Barberia", back_populates="servicios")
-
+    duracion = Column(Integer, nullable=False, default=30)
     turnos = relationship("Turno", back_populates="servicio")
 
     __table_args__ = (

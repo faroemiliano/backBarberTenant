@@ -14,15 +14,7 @@ DIAS = {
     "sunday": "domingo",
 }
 
-FRANJAS = {
-    "martes":   [(time(11,0), time(14,0)), (time(15,0), time(20,0))],
-    "miercoles":[(time(11,0), time(14,0)), (time(15,0), time(20,0))],
-    "jueves":   [(time(11,0), time(14,0)), (time(15,0), time(20,0))],
-    "viernes":  [(time(10,0), time(14,0)), (time(15,0), time(20,0))],
-    "sabado":   [(time(10,0), time(14,0)), (time(15,0), time(20,0))],
-}
 
-INTERVALO = 30
 
 
 def dia_espanol(fecha: date):
@@ -32,16 +24,29 @@ def dia_espanol(fecha: date):
 # =========================
 # 1️⃣ HORARIOS BASE
 # =========================
-def generar_horarios_base(barberia_id: int, db: Session):
+def generar_horarios_base(barberia_id: int, db: Session, dias_filtrados=None):
     barberia = db.query(Barberia).filter_by(id=barberia_id).first()
+
     if not barberia:
         raise Exception("La barbería no existe")
 
-    for dia, franjas in FRANJAS.items():
-        for inicio, fin in franjas:
-            hora_actual = inicio
+    config = barberia.horario_config or {}
+    intervalo = barberia.duracion or 30  # 🔥 dinámico
 
-            while hora_actual < fin:
+    for dia, franjas in config.items():
+
+        # 🔥 FILTRO DE DÍAS
+        if dias_filtrados and dia not in dias_filtrados:
+            continue
+
+        for franja in franjas:
+            inicio_h, fin_h = franja
+
+            hora_actual = time(inicio_h, 0)
+            hora_fin = time(fin_h, 0)
+
+            while hora_actual < hora_fin:
+
                 exists = db.query(HorarioBase).filter_by(
                     dia_semana=dia,
                     hora=hora_actual,
@@ -55,12 +60,13 @@ def generar_horarios_base(barberia_id: int, db: Session):
                         barberia_id=barberia_id
                     ))
 
+                # 🔥 usar duración real
                 hora_actual = (
                     datetime.combine(date.today(), hora_actual)
-                    + timedelta(minutes=INTERVALO)
+                    + timedelta(minutes=intervalo)
                 ).time()
 
-    db.commit()  # ✔ usar la misma sesión
+    db.commit()
 
 
 # =========================

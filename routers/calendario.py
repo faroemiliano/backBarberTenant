@@ -149,8 +149,11 @@ def preparar_calendario(
     fin = date(anio, 12, 31)
 
     # 🔥 limpiar SOLO de esa barbería
-    db.query(Turno).filter(Turno.barberia_id == barberia.id).delete()
-    db.query(Horario).filter(Horario.barberia_id == barberia.id).delete()
+    db.query(Horario).filter(
+    Horario.barberia_id == barberia.id,
+    Horario.disponible == True,
+    Horario.fecha >= date.today()
+).delete()
     db.commit()
 
     barberos = db.query(Usuario).filter(

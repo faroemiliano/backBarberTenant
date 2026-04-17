@@ -196,11 +196,19 @@ def actualizar_barberia(
     db: Session = Depends(get_db),
     user: Usuario = Depends(superadmin_required)
 ):
+    from datetime import date
+
     barberia = db.query(Barberia).filter_by(id=barberia_id).first()
 
     if not barberia:
         raise HTTPException(status_code=404, detail="Barbería no encontrada")
 
+    # 🧠 guardar config anterior
+    old_config = barberia.horario_config or {}
+
+    # -----------------------------
+    # 🔄 ACTUALIZAR DATOS
+    # -----------------------------
     for key, value in data.items():
 
         # 🔥 VALIDAR HORARIO_CONFIG
@@ -226,5 +234,64 @@ def actualizar_barberia(
 
     db.commit()
     db.refresh(barberia)
+
+    # -----------------------------
+    # 🧠 DETECTAR CAMBIOS
+    # -----------------------------
+    new_config = barberia.horario_config or {}
+
+    dias_modificados = []
+
+    for dia in new_config:
+        if old_config.get(dia) != new_config.get(dia):
+            dias_modificados.append(dia)
+
+    # ⚠️ si no cambió nada → salir
+    if not dias_modificados:
+        return barberia
+
+    # -----------------------------
+    # 🧹 BORRAR SOLO HORARIOS LIBRES DE ESOS DÍAS
+    # -----------------------------
+    DIAS_MAP = {
+    "monday": "lunes",
+    "tuesday": "martes",
+    "wednesday": "miercoles",
+    "thursday": "jueves",
+    "friday": "viernes",
+    "saturday": "sabado",
+    "sunday": "domingo",
+}
+
+    barberos = db.query(Usuario).filter(
+    Usuario.barberia_id == barberia.id,
+    Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
+).all()
+
+    horarios = db.query(Horario).filter(
+        Horario.barbero_id.in_([b.id for b in barberos]),
+        Horario.disponible == True,
+        Horario.fecha >= date.today()
+    ).all()
+
+    for h in horarios:
+        dia_nombre = DIAS_MAP[h.fecha.strftime("%A").lower()]
+    
+        if dia_nombre in dias_modificados:
+            db.delete(h)
+
+    db.commit()
+
+# -----------------------------
+# 🔥 REGENERAR SOLO ESOS DÍAS
+# -----------------------------
+    from utils.horarios import generar_horarios_barbero
+
+    for barbero in barberos:
+        generar_horarios_barbero(
+            db,
+            barbero,
+            dias_filtrados=dias_modificados
+        )
 
     return barberia
