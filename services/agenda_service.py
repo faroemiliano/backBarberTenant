@@ -31,7 +31,9 @@ def generar_horarios_base(barberia_id: int, db: Session, dias_filtrados=None):
         raise Exception("La barbería no existe")
 
     config = barberia.horario_config or {}
-    intervalo = barberia.duracion or 30  # 🔥 dinámico
+    intervalo = barberia.duracion_slot
+    if not intervalo:
+        intervalo = 10
 
     for dia, franjas in config.items():
 

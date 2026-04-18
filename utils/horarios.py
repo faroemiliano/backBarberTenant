@@ -12,7 +12,7 @@ def generar_horarios_barbero(
 
     hoy = date.today()
     config = barbero.barberia.horario_config or {}
-    duracion = barbero.barberia.duracion or 40
+    duracion_base = 10
 
     dias_map = {
         0: "lunes",
@@ -27,11 +27,16 @@ def generar_horarios_barbero(
     for i in range(dias_a_generar):
         fecha = hoy + timedelta(days=i)
         dia_nombre = dias_map[fecha.weekday()]
+        print("=== DIA ===")
+        print("Fecha:", fecha)
+        print("Día:", dia_nombre)
+        print("Config completa:", config)
 
         # 🔥 ESTA ES LA MAGIA
         if dias_filtrados and dia_nombre not in dias_filtrados:
             continue
         franjas = config.get(dia_nombre, [])
+        print("Franjas del día:", franjas)
         horas_validas = set()
         # 🔹 CREAR HORAS NUEVAS
         for franja in franjas:
@@ -41,13 +46,19 @@ def generar_horarios_barbero(
             fin_dt = datetime.combine(fecha, time(fin_h, 0))
 
             while inicio_dt < fin_dt:
+                print("Hora actual:", inicio_dt.time())
+                print("Sumando minutos...")
                 hora_actual = inicio_dt.time()
 
-                # 🚫 regla opcional
+                duracion = 10  # 🔥 SIEMPRE reset por iteración
+
+    # regla opcional
                 if fecha.weekday() in [4, 5] and hora_actual == time(13, 40):
+                    duracion = 10  # o 15 si querés
+
                     inicio_dt += timedelta(minutes=duracion)
                     continue
-
+                print("Horas válidas generadas:", sorted(horas_validas))
                 horas_validas.add(hora_actual)
 
                 exists = db.query(Horario).filter_by(

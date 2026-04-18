@@ -168,7 +168,7 @@ class Barberia(Base):
 
     # cada barberia puede configurar su horario 
     horario_config = Column(JSON, nullable=True)
-    duracion = Column(Integer)
+    duracion_slot = Column(Integer, default=10)
 
 
 class BarberoServicio(Base):

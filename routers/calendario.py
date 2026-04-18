@@ -145,15 +145,16 @@ def preparar_calendario(
     dias_map = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
     anio = date.today().year
-    inicio = date(anio, 1, 1)
-    fin = date(anio, 12, 31)
+    inicio = date.today()
+    fin = inicio + timedelta(days=60)
 
     # 🔥 limpiar SOLO de esa barbería
     db.query(Horario).filter(
-    Horario.barberia_id == barberia.id,
-    Horario.disponible == True,
-    Horario.fecha >= date.today()
-).delete()
+        Horario.barberia_id == barberia.id,
+        Horario.disponible == True,
+        Horario.fecha >= inicio
+    ).delete()
+
     db.commit()
 
     barberos = db.query(Usuario).filter(
@@ -182,8 +183,7 @@ def preparar_calendario(
         for inicio_h, fin_h in franjas:
             print("➡️ PROCESANDO:", inicio_h, fin_h)
 
-            duracion = barberia.duracion or 30
-
+            duracion_base = barberia.duracion_slot or 30
             hora_actual = datetime.combine(actual, time(inicio_h, 0))
             fin_datetime = datetime.combine(actual, time(fin_h, 0))
 
@@ -199,7 +199,7 @@ def preparar_calendario(
 
                     creados += 1
 
-                hora_actual += timedelta(minutes=duracion)
+                hora_actual += timedelta(minutes=duracion_base)
 
     # ✅ AHORA SÍ, AFUERA
         actual += timedelta(days=1)
@@ -279,71 +279,130 @@ def preparar_servicios(
 # RESERVAR TURNO
 # =========================
 @router.post("/reservar")
-def reservar(data: SolicitudTurno, db: Session = Depends(get_db), authorization: str = Header(...), barberia = Depends(get_barberia)):
-
+def reservar(
+    data: SolicitudTurno,
+    db: Session = Depends(get_db),
+    authorization: str = Header(...),
+    barberia = Depends(get_barberia)
+):
+    # =========================
+    # AUTH
+    # =========================
     if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token mal formado")
+        raise HTTPException(401, "Token mal formado")
 
-    token = authorization.replace("Bearer ","").strip()
+    token = authorization.replace("Bearer ", "").strip()
     payload = decode_token(token)
 
-    user_id = payload.get("sub")  # 🔥 FIX
+    user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(status_code=401, detail="Token inválido")
+        raise HTTPException(401, "Token inválido")
 
-    usuario = db.query(Usuario).filter_by(
-        id=int(user_id)
-    ).first()
+    usuario = db.query(Usuario).filter_by(id=int(user_id)).first()
 
     if not usuario:
-        raise HTTPException(status_code=401, detail="Usuario no encontrado")
-    print("🔥 ROL:", usuario.rol)
-    print("🔥 USER ID:", usuario.id)
-    print("🔥 BARBERIA:", barberia.id)
-    if usuario.rol == RolEnum.barbero:
-        raise HTTPException(status_code=403, detail="Los barberos no pueden reservar")
+        raise HTTPException(401, "Usuario no encontrado")
 
+    if usuario.rol == RolEnum.barbero:
+        raise HTTPException(403, "Los barberos no pueden reservar")
+
+    # =========================
+    # HORARIO BASE
+    # =========================
     horario = db.query(Horario).filter(
         Horario.id == data.horario_id,
         Horario.disponible == True,
         Horario.barberia_id == barberia.id
     ).first()
+
     if not horario:
-        raise HTTPException(status_code=400, detail="Horario no disponible")
+        raise HTTPException(400, "Horario no disponible")
 
-    fecha_hora_turno = datetime.combine(horario.fecha, horario.hora).replace(tzinfo=ZONA)
+    fecha_hora_turno = datetime.combine(
+        horario.fecha, horario.hora
+    ).replace(tzinfo=ZONA)
+
     if fecha_hora_turno <= datetime.now(tz=ZONA):
-        raise HTTPException(status_code=400, detail="No se pueden reservar fechas pasadas")
+        raise HTTPException(400, "No se pueden reservar fechas pasadas")
 
+    # =========================
+    # SERVICIO
+    # =========================
     servicio = db.query(Servicio).filter(
         Servicio.id == data.servicio_id,
         Servicio.activo == True,
         Servicio.barberia_id == barberia.id
     ).first()
-    if not servicio:
-        raise HTTPException(status_code=400, detail="Servicio inválido")
 
+    if not servicio:
+        raise HTTPException(400, "Servicio inválido")
+
+    # =========================
+    # BLOQUES (LA CLAVE 🔥)
+    # =========================
+    duracion = servicio.duracion or 30
+    slot = barberia.duracion_slot or 30
+
+    bloques = max(1, (duracion + slot - 1) // slot)
+
+    fecha = horario.fecha
+    hora_inicio = horario.hora
+
+    horarios_a_ocupar = []
+
+    for i in range(bloques):
+        hora_bloque = (
+            datetime.combine(fecha, hora_inicio)
+            + timedelta(minutes=slot * i)
+        ).time()
+
+        h = db.query(Horario).filter(
+            Horario.fecha == fecha,
+            Horario.hora == hora_bloque,
+            Horario.barbero_id == horario.barbero_id,
+            Horario.barberia_id == barberia.id
+        ).with_for_update().first()
+        if not h or not h.disponible:
+            raise HTTPException(
+                400,
+                "El horario ya no está disponible completo"
+            )
+
+        horarios_a_ocupar.append(h)
+
+    # =========================
+    # BLOQUEAR TODOS
+    # =========================
+    for h in horarios_a_ocupar:
+        h.disponible = False
+
+    # =========================
+    # CREAR TURNO
+    # =========================
     turno = Turno(
         nombre=usuario.nombre,
         telefono=data.telefono,
-        horario_id=horario.id,
+        horario_id=horarios_a_ocupar[0].id,  # 🔥 SOLO EL PRIMERO
         usuario_id=usuario.id,
         servicio_id=servicio.id,
         precio=servicio.precio,
         barbero_id=horario.barbero_id,
         barberia_id=barberia.id
     )
-    horario.disponible = False
+
     db.add(turno)
     db.commit()
     db.refresh(turno)
 
+    # =========================
+    # EMAIL
+    # =========================
     try:
         enviar_email_confirmacion(
             destino=usuario.email,
             nombre=usuario.nombre,
-            fecha=horario.fecha.strftime("%d/%m/%Y"),
-            hora=horario.hora.strftime("%H:%M"),
+            fecha=horarios_a_ocupar[0].fecha.strftime("%d/%m/%Y"),
+            hora=horarios_a_ocupar[0].hora.strftime("%H:%M"),
             servicio=servicio.nombre,
             precio=servicio.precio,
             barbero=horario.barbero.nombre
@@ -351,6 +410,8 @@ def reservar(data: SolicitudTurno, db: Session = Depends(get_db), authorization:
     except Exception as e:
         print("⚠️ Error enviando email:", e)
 
-    return {"ok": True, "mensaje": "Turno reservado y enviado por email", "turno_id": turno.id}
-
-
+    return {
+        "ok": True,
+        "mensaje": "Turno reservado correctamente",
+        "turno_id": turno.id
+    }

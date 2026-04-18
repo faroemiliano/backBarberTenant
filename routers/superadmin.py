@@ -104,7 +104,7 @@ def listar_barberias(db: Session = Depends(get_db)):
             "fondo_color_videos": b.fondo_color_videos,
             "fondo_color_navbar": b.fondo_color_navbar,
             "horario_config": b.horario_config,
-            "duracion": b.duracion
+            "duracion_slot": b.duracion_slot
         }
             for b in barberias
         ]
