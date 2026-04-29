@@ -1,10 +1,13 @@
 # routers/superadmin.py
+import copy
+
 from rsa import key
 from sqlalchemy import text
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from auth.deps import get_current_user, superadmin_required
+from dependencias import barberia
 from models import Barberia, Horario, HorarioBase, Servicio, Turno, Usuario, RolEnum
 from schemas import CrearBarberiaSchema
 from database import get_db
@@ -197,38 +200,40 @@ def actualizar_barberia(
     user: Usuario = Depends(superadmin_required)
 ):
     from datetime import date
+    from utils.horarios import generar_horarios_barbero
 
     barberia = db.query(Barberia).filter_by(id=barberia_id).first()
 
     if not barberia:
-        raise HTTPException(status_code=404, detail="Barbería no encontrada")
+        raise HTTPException(404, "Barbería no encontrada")
 
-    # 🧠 guardar config anterior
-    old_config = barberia.horario_config or {}
+    old_config = copy.deepcopy(barberia.horario_config or {})
 
     # -----------------------------
-    # 🔄 ACTUALIZAR DATOS
+    # 🔄 ACTUALIZAR DATOS GENERALES
     # -----------------------------
     for key, value in data.items():
 
-        # 🔥 VALIDAR HORARIO_CONFIG
+        if key == "servicios":
+            continue
+
         if key == "horario_config":
             if not isinstance(value, dict):
                 raise HTTPException(400, "Horario inválido")
 
             for dia, franjas in value.items():
                 if not isinstance(franjas, list):
-                    raise HTTPException(400, f"Formato inválido en {dia}")
+                    raise HTTPException(400, f"{dia} inválido")
 
-                for franja in franjas:
+                for f in franjas:
                     if (
-                        not isinstance(franja, list)
-                        or len(franja) != 2
-                        or not all(isinstance(h, int) for h in franja)
+                        not isinstance(f, list)
+                        or len(f) != 2
+                        or not all(isinstance(h, int) for h in f)
+                        or f[0] >= f[1]
                     ):
                         raise HTTPException(400, f"Franja inválida en {dia}")
 
-        # 🔥 SETEO NORMAL
         if hasattr(barberia, key) and value is not None:
             setattr(barberia, key, value)
 
@@ -236,37 +241,81 @@ def actualizar_barberia(
     db.refresh(barberia)
 
     # -----------------------------
-    # 🧠 DETECTAR CAMBIOS
+    # ✂️ SERVICIOS (CREATE / UPDATE / DELETE)
     # -----------------------------
+    servicios = data.get("servicios", {})
+
+    create = servicios.get("create", [])
+    update = servicios.get("update", [])
+    delete_ids = servicios.get("delete_ids", [])
+
+# 🟢 CREATE
+    for s in create:
+        nuevo = Servicio(
+            nombre=s["nombre"],
+            precio=s["precio"],
+            duracion=s.get("duracion", 30),
+            activo=s.get("activo", True),
+            barberia_id=barberia.id
+        )
+        db.add(nuevo)
+
+# 🟡 UPDATE
+    for s in update:
+        servicio = db.query(Servicio).filter(
+            Servicio.id == s["id"],
+            Servicio.barberia_id == barberia.id
+        ).first()
+        if servicio:
+            servicio.nombre = s.get("nombre", servicio.nombre)
+            servicio.precio = s.get("precio", servicio.precio)
+            servicio.duracion = s.get("duracion", servicio.duracion)
+            servicio.activo = s.get("activo", servicio.activo)
+
+# 🔴 DELETE
+    if delete_ids:
+        db.query(Servicio).filter(
+            Servicio.id.in_(delete_ids),
+            Servicio.barberia_id == barberia.id
+        ).delete(synchronize_session=False)
+
+    db.commit()    
+    # -----------------------------
+    # 🧠 DETECTAR CAMBIO DE HORARIOS
+    # -----------------------------
+    db.refresh(barberia)
+    print("🟡 OLD CONFIG:", old_config)
     new_config = barberia.horario_config or {}
+    print("🟢 NEW CONFIG:", new_config)
+    dias_modificados = [
+        dia for dia in new_config
+        if old_config.get(dia) != new_config.get(dia)
+    ]
+    print("🔥 DIAS MODIFICADOS:", dias_modificados)
 
-    dias_modificados = []
-
-    for dia in new_config:
-        if old_config.get(dia) != new_config.get(dia):
-            dias_modificados.append(dia)
-
-    # ⚠️ si no cambió nada → salir
+    if "horario_config" in data and not dias_modificados:
+        print("⚠️ Forzando regeneración (fallback)")
+        dias_modificados = list((new_config or {}).keys())
     if not dias_modificados:
-        return barberia
+        return {"ok": True}
 
     # -----------------------------
-    # 🧹 BORRAR SOLO HORARIOS LIBRES DE ESOS DÍAS
+    # 🧹 BORRAR HORARIOS FUTUROS LIBRES
     # -----------------------------
     DIAS_MAP = {
-    "monday": "lunes",
-    "tuesday": "martes",
-    "wednesday": "miercoles",
-    "thursday": "jueves",
-    "friday": "viernes",
-    "saturday": "sabado",
-    "sunday": "domingo",
-}
+        "monday": "lunes",
+        "tuesday": "martes",
+        "wednesday": "miercoles",
+        "thursday": "jueves",
+        "friday": "viernes",
+        "saturday": "sabado",
+        "sunday": "domingo",
+    }
 
     barberos = db.query(Usuario).filter(
-    Usuario.barberia_id == barberia.id,
-    Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
-).all()
+        Usuario.barberia_id == barberia.id,
+        Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
+    ).all()
 
     horarios = db.query(Horario).filter(
         Horario.barbero_id.in_([b.id for b in barberos]),
@@ -276,22 +325,22 @@ def actualizar_barberia(
 
     for h in horarios:
         dia_nombre = DIAS_MAP[h.fecha.strftime("%A").lower()]
-    
+
         if dia_nombre in dias_modificados:
             db.delete(h)
 
     db.commit()
 
-# -----------------------------
-# 🔥 REGENERAR SOLO ESOS DÍAS
-# -----------------------------
-    from utils.horarios import generar_horarios_barbero
-
+    # -----------------------------
+    # 🔥 REGENERAR
+    # -----------------------------
     for barbero in barberos:
         generar_horarios_barbero(
-            db,
             barbero,
+            db,
             dias_filtrados=dias_modificados
         )
+           
+        
 
-    return barberia
+    return {"ok": True}

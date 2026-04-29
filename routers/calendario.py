@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from datetime import date, datetime, timedelta, time
 from utils.email import enviar_email_confirmacion
 from dependencias.barberia import get_barberia
+from utils.horarios import generar_horarios_barbero
 
 router = APIRouter()
 ZONA = ZoneInfo("America/Argentina/Buenos_Aires")
@@ -130,25 +131,15 @@ def calendario(barbero_id: int, db: Session = Depends(get_db), barberia = Depend
 
 #     return {"ok": True, "horarios_creados": creados}
 @router.post("/preparar-calendario")
-def preparar_calendario(
-    data: BarberiaRequest,
-    db: Session = Depends(get_db)
-):
+def preparar_calendario(data: BarberiaRequest, db: Session = Depends(get_db)):
     barberia = db.query(Barberia).get(data.barberia_id)
 
     if not barberia:
         raise HTTPException(404, "Barberia no encontrada")
 
-    # 🔥 CONFIG POR BARBERÍA
-    config = barberia.horario_config or {}
-
-    dias_map = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
-
-    anio = date.today().year
     inicio = date.today()
-    fin = inicio + timedelta(days=60)
 
-    # 🔥 limpiar SOLO de esa barbería
+    # limpiar
     db.query(Horario).filter(
         Horario.barberia_id == barberia.id,
         Horario.disponible == True,
@@ -159,58 +150,16 @@ def preparar_calendario(
 
     barberos = db.query(Usuario).filter(
         Usuario.barberia_id == barberia.id,
-        Usuario.rol.in_([RolEnum.barbero, RolEnum.admin])
+        Usuario.rol.in_([RolEnum.barbero])
     ).all()
 
     if not barberos:
-        raise HTTPException(400, "No hay barberos en esta barbería")
+        raise HTTPException(400, "No hay barberos")
 
-    creados = 0
-    actual = inicio
+    for barbero in barberos:
+        generar_horarios_barbero(db, barbero)
 
-    while actual <= fin:
-        nombre_dia = dias_map[actual.weekday()]
-
-        franjas = config.get(nombre_dia)
-
-        print("📅 DIA:", nombre_dia)
-        print("🕐 FRANJAS:", franjas)
-
-        if not franjas:
-            actual += timedelta(days=1)
-            continue
-
-        for inicio_h, fin_h in franjas:
-            print("➡️ PROCESANDO:", inicio_h, fin_h)
-
-            duracion_base = barberia.duracion_slot or 30
-            hora_actual = datetime.combine(actual, time(inicio_h, 0))
-            fin_datetime = datetime.combine(actual, time(fin_h, 0))
-
-            while hora_actual < fin_datetime:
-                for barbero in barberos:
-                    db.add(Horario(
-                        fecha=actual,
-                        hora=hora_actual.time(),
-                        disponible=True,
-                        barbero_id=barbero.id,
-                        barberia_id=barberia.id
-                    ))
-
-                    creados += 1
-
-                hora_actual += timedelta(minutes=duracion_base)
-
-    # ✅ AHORA SÍ, AFUERA
-        actual += timedelta(days=1)
-
-    print("HORARIOS A CREAR:", creados)
-    db.commit()
-
-    return {
-        "ok": True,
-        "horarios_creados": creados
-            }
+    return {"ok": True}
 
 
 # =========================

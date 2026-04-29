@@ -4,15 +4,25 @@ from sqlalchemy.orm import Session
 from models import BarberoServicio, Servicio, Usuario, Horario, HorarioBase, RolEnum
 
 def generar_horarios_barbero(
-    db: Session,
     barbero: Usuario,
-    dias_filtrados: list[str] = None,
-    dias_a_generar: int = 60
+    db: Session,
+    dias_a_generar: int = 60,
+    dias_filtrados: list[str] | None = None
 ):
 
     hoy = date.today()
-    config = barbero.barberia.horario_config or {}
-    duracion_base = 10
+
+    # 🔥 FIX 1: traer barberia desde DB (no confiar en relación)
+    barberia = db.query(barbero.__class__.barberia.property.mapper.class_).get(barbero.barberia_id)
+
+    if not barberia:
+        print("❌ Barberia no encontrada para barbero", barbero.id)
+        return
+
+    config = barberia.horario_config or {}
+    duracion_base = barberia.duracion_slot or 30
+
+    print("🧠 CONFIG:", config)
 
     dias_map = {
         0: "lunes",
@@ -27,44 +37,30 @@ def generar_horarios_barbero(
     for i in range(dias_a_generar):
         fecha = hoy + timedelta(days=i)
         dia_nombre = dias_map[fecha.weekday()]
-        print("=== DIA ===")
-        print("Fecha:", fecha)
-        print("Día:", dia_nombre)
-        print("Config completa:", config)
 
-        # 🔥 ESTA ES LA MAGIA
         if dias_filtrados and dia_nombre not in dias_filtrados:
             continue
-        franjas = config.get(dia_nombre, [])
-        print("Franjas del día:", franjas)
-        horas_validas = set()
-        # 🔹 CREAR HORAS NUEVAS
-        for franja in franjas:
-            inicio_h, fin_h = franja
 
+        franjas = config.get(dia_nombre, [])
+
+        # 🔥 DEBUG CLAVE
+        print(f"📅 {fecha} ({dia_nombre}) -> {franjas}")
+
+        horas_validas = set()
+
+        for inicio_h, fin_h in franjas:
             inicio_dt = datetime.combine(fecha, time(inicio_h, 0))
             fin_dt = datetime.combine(fecha, time(fin_h, 0))
 
             while inicio_dt < fin_dt:
-                print("Hora actual:", inicio_dt.time())
-                print("Sumando minutos...")
                 hora_actual = inicio_dt.time()
-
-                duracion = 10  # 🔥 SIEMPRE reset por iteración
-
-    # regla opcional
-                if fecha.weekday() in [4, 5] and hora_actual == time(13, 40):
-                    duracion = 10  # o 15 si querés
-
-                    inicio_dt += timedelta(minutes=duracion)
-                    continue
-                print("Horas válidas generadas:", sorted(horas_validas))
                 horas_validas.add(hora_actual)
 
                 exists = db.query(Horario).filter_by(
                     fecha=fecha,
                     hora=hora_actual,
-                    barbero_id=barbero.id
+                    barbero_id=barbero.id,
+                    barberia_id=barbero.barberia_id
                 ).first()
 
                 if not exists:
@@ -76,12 +72,13 @@ def generar_horarios_barbero(
                         barberia_id=barbero.barberia_id
                     ))
 
-                inicio_dt += timedelta(minutes=duracion)
+                inicio_dt += timedelta(minutes=duracion_base)
 
-        # 🔥 ELIMINAR HORARIOS QUE YA NO EXISTEN (SOLO LIBRES)
+        # 🔥 LIMPIEZA REAL
         horarios_db = db.query(Horario).filter(
             Horario.fecha == fecha,
             Horario.barbero_id == barbero.id,
+            Horario.barberia_id == barbero.barberia_id,
             Horario.disponible == True
         ).all()
 
@@ -90,6 +87,8 @@ def generar_horarios_barbero(
                 db.delete(h)
 
     db.commit()
+
+    print("✅ Horarios generados para barbero", barbero.id)
 
 def asignar_servicios_a_barbero(db: Session, barbero: Usuario):
     if not barbero.barberia_id:
