@@ -213,7 +213,7 @@ def actualizar_barberia(
     # 🔄 ACTUALIZAR DATOS GENERALES
     # -----------------------------
     for key, value in data.items():
-
+        print("KEY:", key, "TYPE:", type(value))
         if key == "servicios":
             continue
 
