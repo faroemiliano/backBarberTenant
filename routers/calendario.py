@@ -347,6 +347,9 @@ def reservar(
     # EMAIL
     # =========================
     try:
+        print("📧 USUARIO ID:", usuario.id)
+        print("📧 EMAIL DESTINO:", usuario.email)
+        print("📧 NOMBRE:", usuario.nombre)
         enviar_email_confirmacion(
             destino=usuario.email,
             nombre=usuario.nombre,

@@ -43,7 +43,7 @@ def enviar_email(destino, asunto, texto, html=None):
         contenido_html = html if html else f"<pre>{texto}</pre>"
 
         resend.Emails.send({
-            "from": "Barberia <onboarding@resend.dev>",
+            "from": "Turnos <turnos@farixio.com>",
             "to": [destino],
             "subject": asunto,
             "html": contenido_html

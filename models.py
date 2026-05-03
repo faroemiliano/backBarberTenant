@@ -127,7 +127,7 @@ class Turno(Base):
     servicio_id = Column(Integer, ForeignKey("servicios.id"), nullable=False)
     barberia_id = Column(Integer, ForeignKey("barberias.id"), nullable=False)
     precio = Column(Float, nullable=False)
-
+    email_cliente = Column(String(150), nullable=True)
     horario = relationship("Horario", back_populates="turno")
     usuario = relationship("Usuario", back_populates="turnos", foreign_keys=[usuario_id])
     barbero = relationship("Usuario", back_populates="turnos_barbero", foreign_keys=[barbero_id])

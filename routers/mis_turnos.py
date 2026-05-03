@@ -6,6 +6,8 @@ from models import Turno, Usuario, Horario, Servicio
 from auth.security import decode_token
 from datetime import datetime
 from dependencias.barberia import get_barberia
+from utils.email import enviar_email_cancelacion
+from sqlalchemy.orm import joinedload
 
 router = APIRouter()
 
@@ -81,11 +83,16 @@ def cancelar_turno(
         raise HTTPException(status_code=401, detail="Token inválido")
 
     # Buscar turno del usuario en esta barbería
-    turno = db.query(Turno).filter(
+    turno = (
+    db.query(Turno)
+    .options(joinedload(Turno.usuario))
+    .filter(
         Turno.id == turno_id,
         Turno.usuario_id == user_id,
         Turno.barberia_id == barberia.id
-    ).first()
+    )
+    .first()
+)
 
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
@@ -102,7 +109,24 @@ def cancelar_turno(
     # Liberar horario
     turno.horario.disponible = True
 
-    # Eliminar turno
+# 🔥 ENVIAR EMAIL (ACÁ)
+    print("🔥 CANCELANDO TURNO USER")
+
+    if turno.usuario and turno.usuario.email:
+        print("📧 ENVIANDO CANCELACION A:", turno.usuario.email)
+
+        try:
+            enviar_email_cancelacion(
+                destino=turno.usuario.email,
+                nombre=turno.usuario.nombre,
+                fecha=turno.horario.fecha,
+                hora=turno.horario.hora,
+                servicio=turno.servicio.nombre,
+            )
+        except Exception as e:
+            print("❌ ERROR EMAIL:", e)
+
+# Eliminar turno
     db.delete(turno)
     db.commit()
 

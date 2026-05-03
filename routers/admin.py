@@ -1,7 +1,7 @@
 # routers/admin_turnos.py
 from dependencias.barberia import get_barberia
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import date, timedelta
 
@@ -58,9 +58,16 @@ def cancelar_turno(
     db: Session = Depends(get_db),
     user = Depends(admin_required)
 ):
-    turno = db.query(Turno).join(Servicio)\
-        .filter(Turno.id == turno_id, Servicio.barberia_id == barberia.id)\
+    turno = (
+        db.query(Turno)
+        .options(joinedload(Turno.usuario))  # 🔥 ESTO ES LA CLAVE
+        .join(Servicio)
+        .filter(
+            Turno.id == turno_id,
+            Servicio.barberia_id == barberia.id
+        )
         .first()
+    )
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
 
@@ -73,13 +80,15 @@ def cancelar_turno(
 
     # enviar email
     try:
+        print("👤 USUARIO:", turno.usuario)
+        print("📧 EMAIL:", turno.usuario.email if turno.usuario else None)
         if turno.usuario and turno.usuario.email:
             enviar_email_cancelacion(
                 destino=turno.usuario.email,
                 nombre=turno.nombre,
                 fecha=horario.fecha,
                 hora=horario.hora,
-                servicio=turno.servicio
+                servicio=turno.servicio.nombre,
             )
     except Exception as e:
         print("❌ Error enviando email:", e)
@@ -101,9 +110,13 @@ def editar_turno(
     db: Session = Depends(get_db),
     user = Depends(admin_required)
 ):
-    turno = db.query(Turno).join(Servicio)\
-        .filter(Turno.id == turno_id, Servicio.barberia_id == barberia.id)\
+    turno = (
+        db.query(Turno)
+        .options(joinedload(Turno.usuario))
+        .join(Servicio)
+        .filter(Turno.id == turno_id, Servicio.barberia_id == barberia.id)
         .first()
+    )
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
 
